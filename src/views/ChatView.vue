@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import ChatComposer from '../components/ChatComposer.vue'
 import InfoPanel from '../components/InfoPanel.vue'
+import OnlineUsers from '../components/OnlineUsers.vue'
 
 interface MessageItem {
   id: number
@@ -18,8 +19,7 @@ const messages = ref<MessageItem[]>([
   { id: 3, author: 'You', text: '收到，先把页面骨架搭起来。', own: true, time: '09:05' },
 ])
 
-const onlineUsers = ['Aster', 'Nova', 'Iris', 'Milo', 'Kite']
-const mediaItems = ['封面图.psd', '聊天截图.png', '活动海报.fig']
+const mediaItems = ['封面图.psd', '聊天图.png', '活动海报.fig']
 
 function handleSend() {
   if (!draft.value) {
@@ -44,14 +44,7 @@ function handleSend() {
 <template>
   <section class="chat-page">
     <aside class="chat-page__meta">
-      <InfoPanel title="在线用户" accent="#00f0ff">
-        <ul class="meta-list">
-          <li v-for="user in onlineUsers" :key="user">
-            <span class="meta-list__status"></span>
-            {{ user }}
-          </li>
-        </ul>
-      </InfoPanel>
+      <OnlineUsers />
 
       <InfoPanel title="公告" accent="#ff2d55">
         <div class="notice-card">
