@@ -1,14 +1,28 @@
 <script setup lang="ts">
+import throttle from 'lodash/throttle'
+
 const message = defineModel<string>({
   required: true,
 })
+
+const props = defineProps<{
+  disabled?: boolean
+}>()
 
 const emit = defineEmits<{
   submit: []
 }>()
 
-function handleSubmit() {
+const throttledSubmit = throttle(() => {
   emit('submit')
+}, 500)
+
+function handleSubmit() {
+  if (props.disabled || !message.value) {
+    return
+  }
+
+  throttledSubmit()
 }
 </script>
 
@@ -22,9 +36,16 @@ function handleSubmit() {
 
     <label class="chat-composer__field">
       <span class="sr-only">输入聊天内容</span>
-      <input v-model.trim="message" type="text" placeholder="输入消息，Enter 发送" />
+      <input v-model.trim="message" type="text" placeholder="输入消息，Enter 发送" :disabled="disabled" />
     </label>
 
-    <button type="submit" class="chat-composer__send">发送</button>
+    <button
+      type="submit"
+      class="chat-composer__send"
+      :class="{ 'chat-composer__send--loading': disabled }"
+      :disabled="disabled"
+    >
+      {{ disabled ? '发送中...' : '发送' }}
+    </button>
   </form>
 </template>

@@ -71,6 +71,7 @@ export const useOnlineStore = defineStore('online', () => {
       }
 
       heartbeatFailCount.value++
+      console.warn('[online] 心跳失败 (' + heartbeatFailCount.value + '/' + MAX_HEARTBEAT_FAILURES + '):', error)
 
       if (heartbeatFailCount.value >= MAX_HEARTBEAT_FAILURES) {
         connectionStatus.value = 'connection_lost'
@@ -90,9 +91,17 @@ export const useOnlineStore = defineStore('online', () => {
 
     try {
       const data = await apiFetchOnlineUsers()
-      onlineUsers.value = data.users
-    } catch {
-      // silent ignore non-critical failures
+
+      // Defensive: handle various backend response shapes
+      // 1. Standard: { users: [...], total: n }
+      // 2. Wrapped:  { data: { users: [...], total: n } }
+      const raw = data as unknown as Record<string, unknown>
+      const rawUsers = (raw.users ?? raw.data) as unknown
+      const fallback = (rawUsers as { users?: OnlineUser[] } | null)?.users ?? rawUsers
+
+      onlineUsers.value = Array.isArray(fallback) ? (fallback as OnlineUser[]) : []
+    } catch (err) {
+      console.error('[online] 获取在线用户列表失败:', err)
     }
   }
 
