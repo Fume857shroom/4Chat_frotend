@@ -3,11 +3,16 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ChatComposer from '../components/ChatComposer.vue'
 import InfoPanel from '../components/InfoPanel.vue'
 import OnlineUsers from '../components/OnlineUsers.vue'
+import CreateAnnounceDialog from '../components/CreateAnnounceDialog.vue'
 import { useMessageStore } from '../stores/message'
 import { useAuthStore } from '../stores/auth'
+import { useAnnounceStore } from '../stores/announce'
 
 const store = useMessageStore()
 const authStore = useAuthStore()
+const announceStore = useAnnounceStore()
+
+const showCreateDialog = ref(false)
 
 const draft = ref('')
 const scrollRef = ref<HTMLDivElement | null>(null)
@@ -168,6 +173,7 @@ onMounted(async () => {
   store.connectEventSource()
   await store.loadInitialMessages()
   scrollToBottom(false)
+  announceStore.fetchAnnounces()
   nextTick(() => {
     setupIntersectionObserver()
   })
@@ -187,11 +193,13 @@ onUnmounted(() => {
     <aside class="chat-page__meta">
       <OnlineUsers />
 
-      <InfoPanel title="公告" accent="#ff2d55">
-        <div class="notice-card">
-          <p>本周优先完善聊天流与消息展示，后续将补充媒体上传与会话列表。</p>
-        </div>
-      </InfoPanel>
+      <InfoPanel
+        title="公告"
+        accent="#ff2d55"
+        :items="announceStore.list"
+        :loading="announceStore.loading"
+        :error="announceStore.error"
+      />
 
       <InfoPanel title="媒体库" accent="#ffe45c">
         <ul class="media-list">
@@ -267,7 +275,13 @@ onUnmounted(() => {
         有新消息
       </div>
 
-      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" />
+      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" @announce="showCreateDialog = true" />
+
+      <CreateAnnounceDialog
+        v-if="showCreateDialog"
+        @success="showCreateDialog = false"
+        @close="showCreateDialog = false"
+      />
     </div>
   </section>
 </template>

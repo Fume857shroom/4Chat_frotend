@@ -11,6 +11,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   submit: []
+  announce: []
 }>()
 
 const throttledSubmit = throttle(() => {
@@ -31,7 +32,7 @@ function handleSubmit() {
     <div class="chat-composer__tools" aria-label="多功能操作">
       <button type="button">+</button>
       <button type="button">GIF</button>
-      <button type="button">@</button>
+      <button type="button" @click="emit('announce')">📢</button>
     </div>
 
     <label class="chat-composer__field">
