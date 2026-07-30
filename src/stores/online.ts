@@ -5,7 +5,7 @@ import { useAuthStore } from './auth'
 import { fetchOnlineUsers as apiFetchOnlineUsers, sendHeartbeat as apiSendHeartbeat } from '../api/online'
 import type { OnlineUser } from '../api/online'
 
-const HEARTBEAT_INTERVAL_ACTIVE = 10_000
+const HEARTBEAT_INTERVAL_ACTIVE = 15_000
 const HEARTBEAT_INTERVAL_HIDDEN = 20_000
 const POLL_INTERVAL = 10_000
 const MAX_HEARTBEAT_FAILURES = 3
@@ -90,16 +90,9 @@ export const useOnlineStore = defineStore('online', () => {
     }
 
     try {
-      const data = await apiFetchOnlineUsers()
-
-      // Defensive: handle various backend response shapes
-      // 1. Standard: { users: [...], total: n }
-      // 2. Wrapped:  { data: { users: [...], total: n } }
-      const raw = data as unknown as Record<string, unknown>
-      const rawUsers = (raw.users ?? raw.data) as unknown
-      const fallback = (rawUsers as { users?: OnlineUser[] } | null)?.users ?? rawUsers
-
-      onlineUsers.value = Array.isArray(fallback) ? (fallback as OnlineUser[]) : []
+      const res = await apiFetchOnlineUsers()
+      // Spec response shape: { code, data: OnlineUser[], total }
+      onlineUsers.value = Array.isArray(res.data) ? res.data : []
     } catch (err) {
       console.error('[online] 获取在线用户列表失败:', err)
     }

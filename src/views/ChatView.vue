@@ -11,8 +11,10 @@ const authStore = useAuthStore()
 
 const draft = ref('')
 const scrollRef = ref<HTMLDivElement | null>(null)
+const sentinelRef = ref<HTMLDivElement | null>(null)
 const hasNewMessage = ref(false)
 const userScrolledUp = ref(false)
+let observer: IntersectionObserver | null = null
 
 // --- Scroll helpers ---
 
@@ -42,27 +44,50 @@ function handleScroll() {
     return
   }
 
-  // Load more history when scrolled to top
-  if (el.scrollTop === 0) {
-    // Save current scroll state before loading
-    const oldScrollHeight = el.scrollHeight
-    const oldScrollTop = el.scrollTop
-
-    store.loadMoreHistory().then(() => {
-      // Preserve viewport position after history prepend
-      nextTick(() => {
-        if (scrollRef.value) {
-          scrollRef.value.scrollTop = scrollRef.value.scrollHeight - oldScrollHeight + oldScrollTop
-        }
-      })
-    })
-  }
-
   const nearBottom = isNearBottom.value
   userScrolledUp.value = !nearBottom
 
   if (nearBottom) {
     hasNewMessage.value = false
+  }
+}
+
+// --- IntersectionObserver for top sentinel ---
+
+function setupIntersectionObserver() {
+  if (!scrollRef.value || !sentinelRef.value) {
+    return
+  }
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (!entry || !entry.isIntersecting) {
+        return
+      }
+      if (!store.hasMore || store.isLoadingHistory) {
+        return
+      }
+
+      const el = scrollRef.value
+      if (!el) {
+        return
+      }
+
+      const oldScrollHeight = el.scrollHeight
+      store.loadMoreHistory().then(() => {
+        nextTick(() => {
+          if (scrollRef.value) {
+            scrollRef.value.scrollTop = scrollRef.value.scrollHeight - oldScrollHeight
+          }
+        })
+      })
+    },
+    { root: scrollRef.value, threshold: 0 },
+  )
+
+  if (sentinelRef.value) {
+    observer.observe(sentinelRef.value)
   }
 }
 
@@ -84,11 +109,9 @@ function retryMessage(tempId: string) {
 }
 
 function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: string } }): boolean {
-  // Optimistic messages from current session
   if (msg._tempId) {
     return true
   }
-  // SSE messages: compare with stored user info
   if (authStore.user?.username && msg.sender) {
     return msg.sender.username === authStore.user.username
   }
@@ -98,7 +121,29 @@ function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: 
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso)
-    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    const now = new Date()
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today.getTime() - 86400000)
+    const msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    const hhmm = d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+    if (msgDate.getTime() === today.getTime()) {
+      return hhmm
+    }
+
+    if (msgDate.getTime() === yesterday.getTime()) {
+      return `昨天 ${hhmm}`
+    }
+
+    const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+    if (d.getFullYear() === now.getFullYear()) {
+      return `${mmdd} ${hhmm}`
+    }
+
+    return `${d.getFullYear()}-${mmdd} ${hhmm}`
   } catch {
     return ''
   }
@@ -107,7 +152,7 @@ function formatTime(iso: string): string {
 // --- Auto scroll on new messages ---
 
 watch(
-  () => store.messageList.length,
+  () => store.messages.length,
   () => {
     if (isNearBottom.value) {
       scrollToBottom(true)
@@ -119,12 +164,20 @@ watch(
 
 // --- Lifecycle ---
 
-onMounted(() => {
+onMounted(async () => {
   store.connectEventSource()
-  store.loadMoreHistory()
+  await store.loadInitialMessages()
+  scrollToBottom(false)
+  nextTick(() => {
+    setupIntersectionObserver()
+  })
 })
 
 onUnmounted(() => {
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
   store.disconnect()
 })
 </script>
@@ -148,31 +201,36 @@ onUnmounted(() => {
     </aside>
 
     <div class="chat-room">
-      <header class="chat-room__header">
-        <div>
-          <p class="eyebrow">LIVE CHANNEL</p>
-          <h1>聊天功能页</h1>
-        </div>
-        <span class="chat-room__tag">默认频道</span>
-      </header>
 
       <div
         ref="scrollRef"
         class="chat-room__messages"
         @scroll="handleScroll"
       >
+        <!-- Sentinel element for IntersectionObserver -->
+        <div ref="sentinelRef" class="chat-room__sentinel"></div>
+
+        <!-- Spacer: push messages to bottom when space allows -->
+        <div class="chat-room__spacer"></div>
+
         <!-- History loading indicator -->
-        <div v-if="store.loadingHistory" class="history-loading">
+        <div v-if="store.isLoadingHistory" class="history-loading">
           加载历史消息...
         </div>
 
+        <!-- History load error with retry -->
+        <div v-else-if="store.historyLoadError" class="history-error">
+          {{ store.historyLoadError }}
+          <button @click="store.retryLoadHistory()">点击重试</button>
+        </div>
+
         <!-- No more history hint -->
-        <div v-else-if="!store.hasMoreHistory && store.messageList.length > 0" class="history-loading history-loading--done">
+        <div v-else-if="!store.hasMore && store.messages.length > 0" class="history-loading history-loading--done">
           已加载全部消息
         </div>
 
         <article
-          v-for="message in store.messageList"
+          v-for="message in store.messages"
           :key="message.id"
           class="message-card"
           :class="{
