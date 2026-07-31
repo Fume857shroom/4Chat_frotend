@@ -1,32 +1,41 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ChatComposer from '../components/ChatComposer.vue'
 import InfoPanel from '../components/InfoPanel.vue'
 import OnlineUsers from '../components/OnlineUsers.vue'
+import CreateAnnounceDialog from '../components/CreateAnnounceDialog.vue'
 import { useMessageStore } from '../stores/message'
 import { useAuthStore } from '../stores/auth'
+import { useAnnounceStore } from '../stores/announce'
+import { requestNotifyPermission, resetUnread } from '../composables/notification'
 
 const store = useMessageStore()
 const authStore = useAuthStore()
+const announceStore = useAnnounceStore()
+
+const showCreateDialog = ref(false)
 
 const draft = ref('')
 const scrollRef = ref<HTMLDivElement | null>(null)
+const sentinelRef = ref<HTMLDivElement | null>(null)
 const hasNewMessage = ref(false)
-const userScrolledUp = ref(false)
+let observer: IntersectionObserver | null = null
 
 // --- Scroll helpers ---
 
-const isNearBottom = computed(() => {
+// 注意：不能使用 computed —— scrollTop/scrollHeight 是 DOM 属性，非响应式，
+// computed 会缓存旧值导致“翻历史时新消息到来仍判断为在底部”的 bug。
+function isNearBottom(): boolean {
   const el = scrollRef.value
   if (!el) {
     return true
   }
   return el.scrollHeight - el.scrollTop - el.clientHeight < 150
-})
+}
 
 function scrollToBottom(smooth = true) {
+  resetUnread()
   hasNewMessage.value = false
-  userScrolledUp.value = false
 
   nextTick(() => {
     const el = scrollRef.value
@@ -42,27 +51,47 @@ function handleScroll() {
     return
   }
 
-  // Load more history when scrolled to top
-  if (el.scrollTop === 0) {
-    // Save current scroll state before loading
-    const oldScrollHeight = el.scrollHeight
-    const oldScrollTop = el.scrollTop
+  if (isNearBottom()) {
+    hasNewMessage.value = false
+  }
+}
 
-    store.loadMoreHistory().then(() => {
-      // Preserve viewport position after history prepend
-      nextTick(() => {
-        if (scrollRef.value) {
-          scrollRef.value.scrollTop = scrollRef.value.scrollHeight - oldScrollHeight + oldScrollTop
-        }
-      })
-    })
+// --- IntersectionObserver for top sentinel ---
+
+function setupIntersectionObserver() {
+  if (!scrollRef.value || !sentinelRef.value) {
+    return
   }
 
-  const nearBottom = isNearBottom.value
-  userScrolledUp.value = !nearBottom
+  observer = new IntersectionObserver(
+    (entries) => {
+      const entry = entries[0]
+      if (!entry || !entry.isIntersecting) {
+        return
+      }
+      if (!store.hasMore || store.isLoadingHistory) {
+        return
+      }
 
-  if (nearBottom) {
-    hasNewMessage.value = false
+      const el = scrollRef.value
+      if (!el) {
+        return
+      }
+
+      const oldScrollHeight = el.scrollHeight
+      store.loadMoreHistory().then(() => {
+        nextTick(() => {
+          if (scrollRef.value) {
+            scrollRef.value.scrollTop = scrollRef.value.scrollHeight - oldScrollHeight
+          }
+        })
+      })
+    },
+    { root: scrollRef.value, threshold: 0 },
+  )
+
+  if (sentinelRef.value) {
+    observer.observe(sentinelRef.value)
   }
 }
 
@@ -84,11 +113,9 @@ function retryMessage(tempId: string) {
 }
 
 function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: string } }): boolean {
-  // Optimistic messages from current session
   if (msg._tempId) {
     return true
   }
-  // SSE messages: compare with stored user info
   if (authStore.user?.username && msg.sender) {
     return msg.sender.username === authStore.user.username
   }
@@ -98,7 +125,29 @@ function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: 
 function formatTime(iso: string): string {
   try {
     const d = new Date(iso)
-    return d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+    const now = new Date()
+
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+    const yesterday = new Date(today.getTime() - 86400000)
+    const msgDate = new Date(d.getFullYear(), d.getMonth(), d.getDate())
+
+    const hhmm = d.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+
+    if (msgDate.getTime() === today.getTime()) {
+      return hhmm
+    }
+
+    if (msgDate.getTime() === yesterday.getTime()) {
+      return `昨天 ${hhmm}`
+    }
+
+    const mmdd = `${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+
+    if (d.getFullYear() === now.getFullYear()) {
+      return `${mmdd} ${hhmm}`
+    }
+
+    return `${d.getFullYear()}-${mmdd} ${hhmm}`
   } catch {
     return ''
   }
@@ -107,9 +156,9 @@ function formatTime(iso: string): string {
 // --- Auto scroll on new messages ---
 
 watch(
-  () => store.messageList.length,
+  () => store.messages[store.messages.length - 1]?.id ?? '',
   () => {
-    if (isNearBottom.value) {
+    if (isNearBottom()) {
       scrollToBottom(true)
     } else {
       hasNewMessage.value = true
@@ -119,12 +168,36 @@ watch(
 
 // --- Lifecycle ---
 
-onMounted(() => {
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    resetUnread()
+  }
+}
+
+function handleWindowFocus() {
+  resetUnread()
+}
+
+onMounted(async () => {
+  requestNotifyPermission()
+  window.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleWindowFocus)
   store.connectEventSource()
-  store.loadMoreHistory()
+  await store.loadInitialMessages()
+  scrollToBottom(false)
+  announceStore.fetchAnnounces()
+  nextTick(() => {
+    setupIntersectionObserver()
+  })
 })
 
 onUnmounted(() => {
+  window.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleWindowFocus)
+  if (observer) {
+    observer.disconnect()
+    observer = null
+  }
   store.disconnect()
 })
 </script>
@@ -134,45 +207,50 @@ onUnmounted(() => {
     <aside class="chat-page__meta">
       <OnlineUsers />
 
-      <InfoPanel title="公告" accent="#ff2d55">
-        <div class="notice-card">
-          <p>本周优先完善聊天流与消息展示，后续将补充媒体上传与会话列表。</p>
-        </div>
-      </InfoPanel>
+      <InfoPanel
+        title="公告"
+        accent="#ff2d55"
+        :items="announceStore.list"
+        :loading="announceStore.loading"
+        :error="announceStore.error"
+      />
 
       <InfoPanel title="媒体库" accent="#ffe45c">
-        <ul class="media-list">
-          <li v-for="item in ['封面图.psd', '聊天图.png', '活动海报.fig']" :key="item">{{ item }}</li>
-        </ul>
+        <p class="info-panel__placeholder">正在开发</p>
       </InfoPanel>
     </aside>
 
     <div class="chat-room">
-      <header class="chat-room__header">
-        <div>
-          <p class="eyebrow">LIVE CHANNEL</p>
-          <h1>聊天功能页</h1>
-        </div>
-        <span class="chat-room__tag">默认频道</span>
-      </header>
 
       <div
         ref="scrollRef"
         class="chat-room__messages"
         @scroll="handleScroll"
       >
+        <!-- Sentinel element for IntersectionObserver -->
+        <div ref="sentinelRef" class="chat-room__sentinel"></div>
+
+        <!-- Spacer: push messages to bottom when space allows -->
+        <div class="chat-room__spacer"></div>
+
         <!-- History loading indicator -->
-        <div v-if="store.loadingHistory" class="history-loading">
+        <div v-if="store.isLoadingHistory" class="history-loading">
           加载历史消息...
         </div>
 
+        <!-- History load error with retry -->
+        <div v-else-if="store.historyLoadError" class="history-error">
+          {{ store.historyLoadError }}
+          <button @click="store.retryLoadHistory()">点击重试</button>
+        </div>
+
         <!-- No more history hint -->
-        <div v-else-if="!store.hasMoreHistory && store.messageList.length > 0" class="history-loading history-loading--done">
+        <div v-else-if="!store.hasMore && store.messages.length > 0" class="history-loading history-loading--done">
           已加载全部消息
         </div>
 
         <article
-          v-for="message in store.messageList"
+          v-for="message in store.messages"
           :key="message.id"
           class="message-card"
           :class="{
@@ -206,10 +284,17 @@ onUnmounted(() => {
         class="new-message-hint"
         @click="scrollToBottom(true)"
       >
+        <span class="new-message-hint__arrow">↓</span>
         有新消息
       </div>
 
-      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" />
+      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" @announce="showCreateDialog = true" />
+
+      <CreateAnnounceDialog
+        v-if="showCreateDialog"
+        @success="showCreateDialog = false"
+        @close="showCreateDialog = false"
+      />
     </div>
   </section>
 </template>

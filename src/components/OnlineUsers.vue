@@ -6,19 +6,13 @@ const onlineStore = useOnlineStore()
 </script>
 
 <template>
-  <InfoPanel title="在线用户" accent="#00f0ff">
+  <InfoPanel title="在线用户" accent="#00f0ff" :count="onlineStore.totalCount">
     <!-- Connection lost warning -->
     <div
       v-if="onlineStore.connectionStatus === 'connection_lost'"
       class="online-users__warning"
     >
       网络连线异常，正在重连...
-    </div>
-
-    <!-- Header with total count -->
-    <div class="online-users__header">
-      <span class="online-users__label">在线人数</span>
-      <span class="online-users__count">{{ onlineStore.totalCount }}</span>
     </div>
 
     <!-- User list -->

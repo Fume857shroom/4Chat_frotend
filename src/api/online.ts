@@ -6,7 +6,8 @@ export interface OnlineUser {
 }
 
 export interface OnlineListResponse {
-  users: OnlineUser[]
+  code: number
+  data: OnlineUser[]
   total: number
 }
 
@@ -21,12 +22,19 @@ export async function sendHeartbeat(): Promise<void> {
 
 export function sendDisconnect(): void {
   const url = `${import.meta.env.VITE_API_BASE_URL || ''}/api/user/disconnect`
-  const token = localStorage.getItem('auth_token')
+  const token = localStorage.getItem('token')
 
   if (token) {
-    navigator.sendBeacon(
-      url,
-      JSON.stringify({ token }),
-    )
+    try {
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        keepalive: true,
+      })
+    } catch {
+      // silently fail - page is closing
+    }
   }
 }

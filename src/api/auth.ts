@@ -7,53 +7,34 @@ export interface LoginPayload {
 
 export type RegisterPayload = LoginPayload
 
+/** JWT 解析后的完整用户信息 (payload: { id, username }) */
 export interface AuthUser {
+  id: string
   username: string
-  email?: string
 }
 
+/** 登录/注册响应中的用户信息（仅含 username） */
+export interface AuthUserInfo {
+  username: string
+}
+
+/** 登录/注册成功响应（扁平格式，非 ApiResponse 包裹） */
 export interface AuthResult {
   token: string
-  user: AuthUser | null
+  user: AuthUserInfo
 }
 
-interface ApiResponseShape {
-  token?: string
-  accessToken?: string
-  user?: AuthUser
-  data?: {
-    token?: string
-    accessToken?: string
-    user?: AuthUser
-  }
-}
-
-function normalizeAuthResult(payload: ApiResponseShape): AuthResult {
-  const token =
-    payload.token ||
-    payload.accessToken ||
-    payload.data?.token ||
-    payload.data?.accessToken ||
-    ''
-
-  if (!token) {
-    throw new Error('接口返回成功，但未提供可用的 token 字段。')
-  }
-
-  return {
-    token,
-    user: payload.user || payload.data?.user || null,
-  }
+interface AuthResponseBody {
+  token: string
+  user: AuthUserInfo
 }
 
 export async function login(payload: LoginPayload): Promise<AuthResult> {
-  const response = await http.post<ApiResponseShape>('/api/auth/login', payload)
-
-  return normalizeAuthResult(response.data)
+  const response = await http.post<AuthResponseBody>('/api/auth/login', payload)
+  return response.data
 }
 
 export async function register(payload: RegisterPayload): Promise<AuthResult> {
-  const response = await http.post<ApiResponseShape>('/api/auth/register', payload)
-
-  return normalizeAuthResult(response.data)
+  const response = await http.post<AuthResponseBody>('/api/auth/register', payload)
+  return response.data
 }

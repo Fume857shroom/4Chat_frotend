@@ -1,9 +1,10 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import type { AuthUser, LoginPayload, RegisterPayload } from '../api/auth'
+import type { AuthUser } from '../api/auth'
+import type { LoginPayload, RegisterPayload } from '../api/auth'
 import { login, register } from '../api/auth'
 
-const TOKEN_KEY = 'auth_token'
+const TOKEN_KEY = 'token'
 const USER_KEY = 'auth_user'
 
 export const useAuthStore = defineStore('auth', () => {
@@ -13,12 +14,22 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loginAction(payload: LoginPayload) {
     const result = await login(payload)
-    persistAuth(result.token, result.user)
+    const decoded = parseJwtPayload(result.token)
+    const resolvedUser: AuthUser = {
+      id: decoded?.id || '',
+      username: result.user.username,
+    }
+    persistAuth(result.token, resolvedUser)
   }
 
   async function registerAction(payload: RegisterPayload) {
     const result = await register(payload)
-    persistAuth(result.token, result.user)
+    const decoded = parseJwtPayload(result.token)
+    const resolvedUser: AuthUser = {
+      id: decoded?.id || '',
+      username: result.user.username,
+    }
+    persistAuth(result.token, resolvedUser)
   }
 
   function logout() {
@@ -49,6 +60,23 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
   }
 })
+
+/** Decode JWT payload to extract user id and username */
+function parseJwtPayload(token: string): { id: string; username: string } | null {
+  try {
+    const base64Url = token.split('.')[1]
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join(''),
+    )
+    return JSON.parse(jsonPayload)
+  } catch {
+    return null
+  }
+}
 
 function readUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)
