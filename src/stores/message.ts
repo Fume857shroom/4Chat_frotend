@@ -3,6 +3,7 @@ import { defineStore } from 'pinia'
 import { sendMessage as apiSendMessage, fetchHistory as apiFetchHistory } from '../api/message'
 import type { MessageDisplay, MessageItem } from '../api/message'
 import { useAuthStore } from './auth'
+import { notify } from '../composables/notification'
 
 const INITIAL_LIMIT = 100
 const INCREMENTAL_LIMIT = 50
@@ -56,6 +57,7 @@ export const useMessageStore = defineStore('message', () => {
         }
 
         messages.value = [...list, { ...msg, _state: 'sent' }]
+        notify(data.sender?.username || '未知用户', msg.content)
       } catch {
         // ignore malformed SSE data
       }

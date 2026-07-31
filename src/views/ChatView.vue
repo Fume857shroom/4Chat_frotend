@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
+import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ChatComposer from '../components/ChatComposer.vue'
 import InfoPanel from '../components/InfoPanel.vue'
 import OnlineUsers from '../components/OnlineUsers.vue'
@@ -7,6 +7,7 @@ import CreateAnnounceDialog from '../components/CreateAnnounceDialog.vue'
 import { useMessageStore } from '../stores/message'
 import { useAuthStore } from '../stores/auth'
 import { useAnnounceStore } from '../stores/announce'
+import { requestNotifyPermission, resetUnread } from '../composables/notification'
 
 const store = useMessageStore()
 const authStore = useAuthStore()
@@ -18,22 +19,23 @@ const draft = ref('')
 const scrollRef = ref<HTMLDivElement | null>(null)
 const sentinelRef = ref<HTMLDivElement | null>(null)
 const hasNewMessage = ref(false)
-const userScrolledUp = ref(false)
 let observer: IntersectionObserver | null = null
 
 // --- Scroll helpers ---
 
-const isNearBottom = computed(() => {
+// 注意：不能使用 computed —— scrollTop/scrollHeight 是 DOM 属性，非响应式，
+// computed 会缓存旧值导致“翻历史时新消息到来仍判断为在底部”的 bug。
+function isNearBottom(): boolean {
   const el = scrollRef.value
   if (!el) {
     return true
   }
   return el.scrollHeight - el.scrollTop - el.clientHeight < 150
-})
+}
 
 function scrollToBottom(smooth = true) {
+  resetUnread()
   hasNewMessage.value = false
-  userScrolledUp.value = false
 
   nextTick(() => {
     const el = scrollRef.value
@@ -49,10 +51,7 @@ function handleScroll() {
     return
   }
 
-  const nearBottom = isNearBottom.value
-  userScrolledUp.value = !nearBottom
-
-  if (nearBottom) {
+  if (isNearBottom()) {
     hasNewMessage.value = false
   }
 }
@@ -157,9 +156,9 @@ function formatTime(iso: string): string {
 // --- Auto scroll on new messages ---
 
 watch(
-  () => store.messages.length,
+  () => store.messages[store.messages.length - 1]?.id ?? '',
   () => {
-    if (isNearBottom.value) {
+    if (isNearBottom()) {
       scrollToBottom(true)
     } else {
       hasNewMessage.value = true
@@ -169,7 +168,20 @@ watch(
 
 // --- Lifecycle ---
 
+function handleVisibilityChange() {
+  if (!document.hidden) {
+    resetUnread()
+  }
+}
+
+function handleWindowFocus() {
+  resetUnread()
+}
+
 onMounted(async () => {
+  requestNotifyPermission()
+  window.addEventListener('visibilitychange', handleVisibilityChange)
+  window.addEventListener('focus', handleWindowFocus)
   store.connectEventSource()
   await store.loadInitialMessages()
   scrollToBottom(false)
@@ -180,6 +192,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  window.removeEventListener('visibilitychange', handleVisibilityChange)
+  window.removeEventListener('focus', handleWindowFocus)
   if (observer) {
     observer.disconnect()
     observer = null
@@ -202,9 +216,7 @@ onUnmounted(() => {
       />
 
       <InfoPanel title="媒体库" accent="#ffe45c">
-        <ul class="media-list">
-          <li v-for="item in ['封面图.psd', '聊天图.png', '活动海报.fig']" :key="item">{{ item }}</li>
-        </ul>
+        <p class="info-panel__placeholder">正在开发</p>
       </InfoPanel>
     </aside>
 
@@ -272,6 +284,7 @@ onUnmounted(() => {
         class="new-message-hint"
         @click="scrollToBottom(true)"
       >
+        <span class="new-message-hint__arrow">↓</span>
         有新消息
       </div>
 

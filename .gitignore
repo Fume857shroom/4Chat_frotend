@@ -12,6 +12,23 @@ dist
 dist-ssr
 *.local
 
+# Local environment files (privacy)
+.env
+.env.*
+!.env.example
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+Thumbs.db
+Desktop.ini
+
+# Secrets (defensive)
+*.pem
+*.key
+*.crt
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -24,3 +41,4 @@ dist-ssr
 *.sw?
 
 dev.ps1
+

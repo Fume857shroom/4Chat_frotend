@@ -1,22 +1,22 @@
 <script setup lang="ts">
+import { showToast } from '../composables/toast'
+
 const items = [
   {
-    label: 'CHAT',
-    hint: '实时会话',
     to: '/chat',
     icon: 'C',
   },
 ]
+
+function handleDevClick() {
+  showToast('正在开发')
+}
 </script>
 
 <template>
   <aside class="app-sidebar">
     <div class="app-sidebar__brand">
       <span class="app-sidebar__mark">4C</span>
-      <div>
-        <p>4Chat</p>
-        <span>Console</span>
-      </div>
     </div>
 
     <nav class="app-sidebar__nav" aria-label="主功能">
@@ -26,13 +26,14 @@ const items = [
         :to="item.to"
         class="app-sidebar__link"
         active-class="is-active"
+        :title="item.icon"
       >
         <span class="app-sidebar__icon">{{ item.icon }}</span>
-        <span class="app-sidebar__copy">
-          <strong>{{ item.label }}</strong>
-          <small>{{ item.hint }}</small>
-        </span>
       </RouterLink>
+
+      <button type="button" class="app-sidebar__link" title="乐" @click="handleDevClick">
+        <span class="app-sidebar__icon">乐</span>
+      </button>
     </nav>
   </aside>
 </template>

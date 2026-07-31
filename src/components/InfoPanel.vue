@@ -7,6 +7,7 @@ defineProps<{
   items?: Announce[]
   loading?: boolean
   error?: string | null
+  count?: number
 }>()
 
 function formatShortTime(iso: string): string {
@@ -28,6 +29,7 @@ function formatShortTime(iso: string): string {
     <header class="info-panel__header">
       <span class="info-panel__dot"></span>
       <h2>{{ title }}</h2>
+      <span v-if="count !== undefined" class="info-panel__count">{{ count }}</span>
     </header>
     <div class="info-panel__body">
       <!-- Items mode -->
