@@ -1,9 +1,9 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { sendMessage as apiSendMessage, fetchHistory as apiFetchHistory } from '../api/message'
-import type { MessageDisplay, MessageItem } from '../api/message'
-import { useAuthStore } from './auth'
-import { notify } from '../composables/notification'
+import { sendMessage as apiSendMessage, fetchHistory as apiFetchHistory } from '../../api/chat/message'
+import type { MessageDisplay, MessageItem } from '../../api/chat/message'
+import { useAuthStore } from '../auth'
+import { notify } from '../../composables/notification'
 
 const INITIAL_LIMIT = 100
 const INCREMENTAL_LIMIT = 50

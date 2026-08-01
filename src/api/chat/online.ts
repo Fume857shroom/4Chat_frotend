@@ -1,8 +1,10 @@
-import http from './http'
+import http from '../http'
 
 export interface OnlineUser {
   id: string
   username: string
+  // 头像相对路径（/uploads/...），空字符串或缺失表示无头像
+  avatar?: string
 }
 
 export interface OnlineListResponse {

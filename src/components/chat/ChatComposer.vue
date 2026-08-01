@@ -48,3 +48,47 @@ function handleSubmit() {
     </button>
   </form>
 </template>
+
+<style scoped>
+.chat-composer {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 12px;
+  padding: 18px 24px 24px;
+  border-top: 1px solid var(--line);
+}
+
+.chat-composer__tools {
+  display: flex;
+  gap: 8px;
+}
+
+.chat-composer__tools button {
+  min-width: 48px;
+  min-height: 52px;
+  padding: 0 14px;
+  border-radius: 14px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.chat-composer__send {
+  min-width: 112px;
+  color: #081017;
+  background: linear-gradient(90deg, var(--cyan), #8dffcf);
+}
+
+@media (max-width: 720px) {
+  .chat-composer {
+    grid-template-columns: 1fr;
+  }
+
+  .chat-composer__tools {
+    order: 2;
+  }
+
+  .chat-composer__send {
+    order: 3;
+  }
+}
+</style>
