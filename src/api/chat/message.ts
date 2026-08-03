@@ -1,8 +1,14 @@
-import http from './http'
+import http from '../http'
+
+// ==========================================
+// 消息相关
+// ==========================================
 
 export interface SenderInfo {
   id: string
   username: string
+  // 头像相对路径（/uploads/...），空字符串或缺失表示无头像
+  avatar?: string
 }
 
 export interface MessageItem {
@@ -56,4 +62,48 @@ export async function fetchHistory(cursor?: string, limit = 100): Promise<{
     nextCursor: (body.nextCursor as string | null) ?? (rawData as Record<string, unknown>)?.nextCursor as string | null ?? null,
     hasMore: (body.hasMore as boolean) ?? (rawData as Record<string, unknown>)?.hasMore as boolean ?? false,
   }
+}
+
+// ==========================================
+// 公告相关
+// ==========================================
+
+export interface Announce {
+  id: number
+  userId: number
+  title: string
+  content: string
+  status: number
+  createdAt: string
+}
+
+export interface AnnounceListResult {
+  data: Announce[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface CreateAnnounceDTO {
+  title: string
+  content: string
+}
+
+export async function fetchAnnounces(page = 1, limit = 20): Promise<AnnounceListResult> {
+  const response = await http.get<{
+    code: number
+    data: Announce[]
+    total: number
+    page: number
+    limit: number
+  }>('/api/v1/announce', { params: { page, limit } })
+  return response.data as unknown as AnnounceListResult
+}
+
+export async function createAnnounce(dto: CreateAnnounceDTO): Promise<Announce> {
+  const response = await http.post<{ code: number; message: string; data: Announce }>(
+    '/api/v1/announce',
+    dto,
+  )
+  return response.data.data
 }

@@ -113,3 +113,121 @@ function switchMode(nextMode: Mode) {
     </div>
   </section>
 </template>
+
+<style scoped>
+.eyebrow {
+  font-size: 12px;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--cyan);
+}
+
+.auth-page {
+  position: relative;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+}
+
+.auth-page__backdrop {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(130deg, rgba(0, 240, 255, 0.12), transparent 42%),
+    linear-gradient(310deg, rgba(255, 45, 85, 0.14), transparent 38%);
+  filter: blur(24px);
+}
+
+.auth-card {
+  position: relative;
+  z-index: 1;
+  width: min(100%, 540px);
+  padding: 32px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-xl);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02)),
+    var(--panel);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(18px);
+}
+
+.auth-card__intro {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.auth-card__intro h1 {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 5vw, 48px);
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.auth-card__intro p:last-child {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.auth-switch {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 24px;
+  padding: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.auth-switch button {
+  padding: 12px 20px;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+}
+
+.auth-switch button.is-active {
+  background: linear-gradient(90deg, var(--cyan), #62fff4);
+  color: #03131a;
+  font-weight: 700;
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.auth-form__error {
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #fff2f5;
+  background: rgba(255, 45, 85, 0.12);
+  border: 1px solid rgba(255, 45, 85, 0.24);
+}
+
+.auth-form__submit {
+  background: linear-gradient(90deg, var(--pink), #ff7b54);
+  color: white;
+}
+
+.auth-form__submit:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+@media (max-width: 720px) {
+  .auth-page {
+    padding: 16px;
+  }
+}
+</style>

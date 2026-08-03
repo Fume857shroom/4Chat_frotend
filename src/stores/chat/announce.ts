@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
-import type { Announce } from '../api/announce'
-import { fetchAnnounces as apiFetchAnnounces, createAnnounce as apiCreateAnnounce } from '../api/announce'
+import type { Announce } from '../../api/chat/message'
+import { fetchAnnounces as apiFetchAnnounces, createAnnounce as apiCreateAnnounce } from '../../api/chat/message'
 
 export const useAnnounceStore = defineStore('announce', () => {
   const list = ref<Announce[]>([])

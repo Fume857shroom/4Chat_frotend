@@ -1,9 +1,9 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
-import router from '../router'
-import { useAuthStore } from './auth'
-import { fetchOnlineUsers as apiFetchOnlineUsers, sendHeartbeat as apiSendHeartbeat } from '../api/online'
-import type { OnlineUser } from '../api/online'
+import router from '../../router'
+import { useAuthStore } from '../auth'
+import { fetchOnlineUsers as apiFetchOnlineUsers, sendHeartbeat as apiSendHeartbeat } from '../../api/chat/online'
+import type { OnlineUser } from '../../api/chat/online'
 
 const HEARTBEAT_INTERVAL_ACTIVE = 15_000
 const HEARTBEAT_INTERVAL_HIDDEN = 20_000

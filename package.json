@@ -8,8 +8,12 @@
     "build": "vue-tsc -b && vite build",
     "preview": "vite preview"
   },
+  "engines": {
+    "node": "22.23.1"
+  },
   "dependencies": {
     "axios": "^1.18.1",
+    "cropperjs": "^1.6.2",
     "echarts": "^6.1.0",
     "lodash": "^4.18.1",
     "pinia": "^4.0.2",
@@ -17,6 +21,7 @@
     "vue-router": "^4.6.4"
   },
   "devDependencies": {
+    "@types/cropperjs": "^1.1.5",
     "@types/lodash": "^4.17.24",
     "@types/node": "^24.13.2",
     "@vitejs/plugin-vue": "^6.0.7",
