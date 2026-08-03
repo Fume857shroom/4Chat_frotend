@@ -8,6 +8,7 @@ import { useMessageStore } from '../../stores/chat/message'
 import { useAuthStore } from '../../stores/auth'
 import { useAnnounceStore } from '../../stores/chat/announce'
 import { requestNotifyPermission, resetUnread } from '../../composables/notification'
+import { showToast } from '../../composables/toast'
 import { useUserStore } from '../../stores/user'
 import { resolveAvatarUrl, avatarHue } from '../../composables/avatar'
 
@@ -231,7 +232,12 @@ function handleWindowFocus() {
 }
 
 onMounted(async () => {
-  requestNotifyPermission()
+  const perm = requestNotifyPermission()
+  if (perm === 'denied') {
+    showToast('通知权限被拒绝，新消息将仅通过标题提示')
+  } else if (perm === 'unsupported') {
+    showToast('当前环境不支持系统通知（需 HTTPS）')
+  }
   window.addEventListener('visibilitychange', handleVisibilityChange)
   window.addEventListener('focus', handleWindowFocus)
   store.connectEventSource()
@@ -307,6 +313,7 @@ onUnmounted(() => {
           :key="message.id"
           class="message-row"
           :class="{ 'message-row--own': isOwnMessage(message) }"
+          style="width: 100%"
         >
           <!-- 头像：有图显示图片，无图显示首字符占位符 -->
           <span
@@ -318,19 +325,25 @@ onUnmounted(() => {
             <template v-else>{{ avatarTextOf(message) }}</template>
           </span>
 
-          <article
-            class="message-card"
-            :class="{
-              'message-card--own': isOwnMessage(message),
-              'message-card--sending': message._state === 'sending',
-              'message-card--failed': message._state === 'failed',
-            }"
-          >
-            <header class="message-card__name">{{ displayNameOf(message) }}</header>
-            <p>{{ message.content }}</p>
-            <footer class="message-card__meta">
-              <span class="message-card__date">{{ formatDate(message.createdAt) }}</span>
-              <span class="message-card__time">
+          <div class="message-body">
+            <!-- 用户名：气泡外上方，紧贴气泡左对齐 -->
+            <span class="message-body__name">{{ displayNameOf(message) }}</span>
+
+            <article
+              class="message-card"
+              :class="{
+                'message-card--own': isOwnMessage(message),
+                'message-card--sending': message._state === 'sending',
+                'message-card--failed': message._state === 'failed',
+              }"
+            >
+              <p>{{ message.content }}</p>
+            </article>
+
+            <!-- 时间：气泡同一行右外侧，紧贴气泡右边界（自己：左外侧） -->
+            <div class="message-body__meta">
+              <span class="message-body__date">{{ formatDate(message.createdAt) }}</span>
+              <span class="message-body__time">
                 {{ formatTime(message.createdAt) }}
                 <span v-if="message._state === 'sending'" class="message-card__status message-card__status--sending"></span>
               </span>
@@ -342,8 +355,8 @@ onUnmounted(() => {
               >
                 重试
               </button>
-            </footer>
-          </article>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -429,7 +442,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  padding: 24px;
+  padding: 24px 80px 24px 24px;
   overflow-y: auto;
   overflow-x: hidden;
   /* 滚动条透明：轨道不可见，滑块半透明 */
@@ -459,6 +472,7 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
 }
 
 .message-row--own {
@@ -488,42 +502,66 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-/* --- 聊天气泡：紧凑适配文字 --- */
-.message-card {
-  width: fit-content;
+/* --- 消息主体容器：用户名 / 气泡 / 时间 --- */
+.message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
   max-width: min(60%, 460px);
-  padding: 10px 14px;
-  border-radius: 18px 18px 18px 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* 姓名：气泡左上角 */
-.message-card__name {
-  margin-bottom: 4px;
+.message-row--own .message-body {
+  align-items: flex-end;
+}
+
+/* 用户名：气泡外上方，紧贴气泡左对齐 */
+.message-body__name {
+  margin-bottom: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
 }
 
+/* --- 聊天气泡：长方形圆角条状 --- */
+.message-card {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .message-card p {
   line-height: 1.6;
 }
 
-/* 日期（上）/ 时间（下）：气泡右下角，右对齐叠加 */
-.message-card__meta {
+/* 时间：气泡同一行右外侧（自己：左外侧），紧贴气泡右边界 */
+.message-body__meta {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  transform: translateX(calc(100% + 8px));
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2px;
-  margin-top: 6px;
   color: rgba(255, 255, 255, 0.35);
   font-size: 10px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
-.message-card__time {
+.message-row--own .message-body__meta {
+  left: 0;
+  right: auto;
+  transform: translateX(calc(-100% - 8px));
+  align-items: flex-end;
+}
+
+.message-body__time {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -558,7 +596,6 @@ onUnmounted(() => {
 }
 
 .message-card--own {
-  border-radius: 18px 18px 6px 18px;
   background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(255, 45, 85, 0.12));
 }
 

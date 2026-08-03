@@ -6,11 +6,37 @@ const baseTitle = document.title || '4Chat'
 const MERGE_WINDOW_MS = 3000
 let lastNotifyAt = 0
 
-// 授权：需用户手势触发，登录进入聊天页时调用一次
-export function requestNotifyPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    Notification.requestPermission()
+export type NotifyPermissionStatus = 'granted' | 'denied' | 'unsupported' | 'requested'
+
+// 系统通知能力检测：非安全上下文（HTTP）下浏览器禁用 Notification，需先降级
+function canUseSystemNotification(): boolean {
+  if (!window.isSecureContext) {
+    return false
   }
+  return 'Notification' in window
+}
+
+// 授权：需用户手势触发，登录进入聊天页时调用一次；返回状态供页面提示
+export function requestNotifyPermission(): NotifyPermissionStatus {
+  if (!canUseSystemNotification()) {
+    return 'unsupported'
+  }
+  if (Notification.permission === 'granted') {
+    return 'granted'
+  }
+  if (Notification.permission === 'denied') {
+    return 'denied'
+  }
+  // default：发起授权请求，兼容旧式 callback 形式并吞掉可能的 rejection
+  try {
+    const req = Notification.requestPermission() as unknown as
+      | Promise<NotificationPermission>
+      | undefined
+    req?.catch?.(() => {})
+  } catch {
+    return 'unsupported'
+  }
+  return 'requested'
 }
 
 // 入口：SSE 收到其他用户消息时调用
@@ -31,20 +57,26 @@ export function notify(senderName: string, content: string) {
 
   // C：页面完全隐藏（切走标签页/最小化）→ 系统通知
   const now = Date.now()
-  const canNotify = 'Notification' in window && Notification.permission === 'granted'
+  const canNotify = canUseSystemNotification() && Notification.permission === 'granted'
   const merged = now - lastNotifyAt < MERGE_WINDOW_MS
 
   if (canNotify && !merged) {
     lastNotifyAt = now
-    const notification = new Notification('4Chat', {
-      body: `${senderName}：${truncate(content, 50)}`,
-    })
-    notification.onclick = () => {
-      window.focus()
-      resetUnread()
-      if (router.currentRoute.value.name !== 'chat') {
-        router.push({ name: 'chat' })
+    try {
+      const notification = new Notification('4Chat', {
+        body: `${senderName}：${truncate(content, 50)}`,
+        tag: '4chat-message', // 同 tag 通知由浏览器自动合并，双重防轰炸
+      })
+      notification.onclick = () => {
+        window.focus()
+        resetUnread()
+        if (router.currentRoute.value.name !== 'chat') {
+          router.push({ name: 'chat' })
+        }
+        notification.close()
       }
+    } catch {
+      // 构造失败（权限被系统撤销等）→ 静默降级，仅保留标题未读
     }
   }
 }
