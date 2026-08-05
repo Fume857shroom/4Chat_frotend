@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { getCalendar, type DailyCalendar } from '../../api/calendar'
+import { getCalendar, type DailyCalendar } from '../../api/fun/calendar.ts'
 import CalendarMonth from '../../components/fun/CalendarMonth.vue'
 import HuangliPanel from '../../components/fun/HuangliPanel.vue'
 

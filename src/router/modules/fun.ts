@@ -2,6 +2,7 @@ import type { RouteRecordRaw } from 'vue-router'
 import HomeView from '../../views/HomeView.vue'
 import FunView from '../../views/fun/FunView.vue'
 import CalendarView from '../../views/fun/CalendarView.vue'
+import GomokuView from '../../views/fun/GomokuView.vue'
 import FunPagePlaceholder from '../../components/fun/FunPagePlaceholder.vue'
 
 export const funRoutes: RouteRecordRaw[] = [
@@ -34,8 +35,7 @@ export const funRoutes: RouteRecordRaw[] = [
           {
             path: 'gomoku',
             name: 'fun-gomoku',
-            component: FunPagePlaceholder,
-            props: { icon: '⚫', name: '五子棋' },
+            component: GomokuView,
             meta: {
               requiresAuth: true,
               feature: 'fun',

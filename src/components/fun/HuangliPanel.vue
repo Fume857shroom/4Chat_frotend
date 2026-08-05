@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { DailyCalendar } from '../../api/calendar'
+import type { DailyCalendar } from '../../api/fun/calendar'
 
 defineProps<{
   data: DailyCalendar | null
