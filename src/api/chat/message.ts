@@ -5,7 +5,7 @@ import http from '../http'
 // ==========================================
 
 export interface SenderInfo {
-  id: string
+  id: number
   username: string
   // 头像相对路径（/uploads/...），空字符串或缺失表示无头像
   avatar?: string

@@ -10,7 +10,7 @@ const authStore = useAuthStore()
 const userStore = useUserStore()
 
 // 自己的条目优先显示个人中心设置的新昵称
-function displayNameOf(user: { id: string; username: string }): string {
+function displayNameOf(user: { id: number; username: string }): string {
   if (authStore.user?.id && user.id === authStore.user.id) {
     return userStore.profile?.nickname || user.username
   }
@@ -18,17 +18,17 @@ function displayNameOf(user: { id: string; username: string }): string {
 }
 
 // 头像 URL：空值（未设置）时为空，显示占位符
-function avatarOf(user: { id: string; username: string; avatar?: string }): string {
+function avatarOf(user: { id: number; username: string; avatar?: string }): string {
   return resolveAvatarUrl(user.avatar)
 }
 
 // 无头像时的占位符首字符
-function avatarTextOf(user: { id: string; username: string }): string {
+function avatarTextOf(user: { id: number; username: string }): string {
   return user.username.charAt(0) || '?'
 }
 
 // 无头像时的占位符背景：按 id 哈希取色
-function avatarStyleOf(user: { id: string; username: string; avatar?: string }): Record<string, string> | undefined {
+function avatarStyleOf(user: { id: number; username: string; avatar?: string }): Record<string, string> | undefined {
   if (avatarOf(user)) {
     return undefined
   }

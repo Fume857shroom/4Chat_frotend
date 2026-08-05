@@ -14,22 +14,19 @@ export const useAuthStore = defineStore('auth', () => {
 
   async function loginAction(payload: LoginPayload) {
     const result = await login(payload)
-    const decoded = parseJwtPayload(result.token)
-    const resolvedUser: AuthUser = {
-      id: decoded?.id || '',
+    // 后端已返回数字 id，直接使用（不再依赖 JWT 解析）
+    persistAuth(result.token, {
+      id: result.user.id,
       username: result.user.username,
-    }
-    persistAuth(result.token, resolvedUser)
+    })
   }
 
   async function registerAction(payload: RegisterPayload) {
     const result = await register(payload)
-    const decoded = parseJwtPayload(result.token)
-    const resolvedUser: AuthUser = {
-      id: decoded?.id || '',
+    persistAuth(result.token, {
+      id: result.user.id,
       username: result.user.username,
-    }
-    persistAuth(result.token, resolvedUser)
+    })
   }
 
   function logout() {
@@ -60,23 +57,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
   }
 })
-
-/** Decode JWT payload to extract user id and username */
-function parseJwtPayload(token: string): { id: string; username: string } | null {
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    )
-    return JSON.parse(jsonPayload)
-  } catch {
-    return null
-  }
-}
 
 function readUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)

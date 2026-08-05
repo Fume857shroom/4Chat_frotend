@@ -153,7 +153,7 @@ export const useMessageStore = defineStore('message', () => {
       content,
       type: 'TEXT',
       createdAt: new Date().toISOString(),
-      sender: { id: '', username: '' },
+      sender: { id: 0, username: '' },
       _state: 'sending',
       _tempId: tempId,
     }

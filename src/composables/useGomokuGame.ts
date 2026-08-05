@@ -48,7 +48,7 @@ export function useGomokuGame() {
 
   // 我的颜色：用当前登录用户 id 对比黑白方 id（观战者为 null）
   const auth = useAuthStore()
-  const myUserId = computed(() => Number(auth.user?.id ?? -1))
+  const myUserId = computed(() => auth.user?.id ?? -1)
   const myColor = computed<'black' | 'white' | null>(() => {
     if (myUserId.value === blackPlayerId.value) return 'black'
     if (myUserId.value === whitePlayerId.value) return 'white'
@@ -107,8 +107,7 @@ export function useGomokuGame() {
   async function refreshGame() {
     if (gameId.value === null) return
     try {
-      const res = await getGameApi(gameId.value)
-      syncGame(res.data)
+      syncGame(await getGameApi(gameId.value))
     } catch {
       // 拉取失败等下一次触发
     }
@@ -119,8 +118,7 @@ export function useGomokuGame() {
   // 点进五子棋后只查看房间，不占位
   // 无房间 → empty；waiting 非黑方 → canJoin；其余 → board（含观战）
   async function enterRoom(): Promise<RoomMode> {
-    const res = await getCurrent()
-    const game = res.data
+    const game = await getCurrent()
 
     if (game === null) {
       // 房间不存在 → 显示空棋盘 + "加入房间"按钮（不占位）
@@ -150,15 +148,13 @@ export function useGomokuGame() {
 
   // 创建/进入房间（"加入房间"按钮触发）
   async function createGame() {
-    const res = await createGameApi()
-    syncGame(res.data)
+    syncGame(await createGameApi())
     connectEventSource()
   }
 
   // 加入对局（本人重进幂等 200）
   async function joinGame(id: number) {
-    const res = await joinGameApi(id)
-    syncGame(res.data)
+    syncGame(await joinGameApi(id))
     connectEventSource()
   }
 
@@ -168,8 +164,7 @@ export function useGomokuGame() {
     if (!isMyTurn.value) return false
     if (colorAt(x, y) !== null) return false
     try {
-      const res = await makeMoveApi(gameId.value, { x, y })
-      syncGame(res.data)
+      syncGame(await makeMoveApi(gameId.value, { x, y }))
       return true
     } catch {
       return false
@@ -178,8 +173,7 @@ export function useGomokuGame() {
 
   // 再来一局（投票制：第一票记录，第二票真正重开）
   async function restart() {
-    const res = await restartGameApi()
-    syncGame(res.data)
+    syncGame(await restartGameApi())
   }
 
   // 离开页面 = 退出让位（sendBeacon，组件卸载时调用）

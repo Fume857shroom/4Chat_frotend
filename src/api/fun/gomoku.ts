@@ -1,4 +1,5 @@
 import http from '../http'
+import type { Envelope } from '../http'
 
 export type GameStatus = 'waiting' | 'playing' | 'finished'
 
@@ -36,20 +37,27 @@ export interface Game {
   }
 }
 
-export function createGame() {
-  return http.post<Game>('/api/v1/gomoku/new')
+export async function createGame(): Promise<Game> {
+  const res = await http.post<Envelope<Game>>('/api/v1/gomoku/new')
+  return res.data.data!
 }
 
-export function joinGame(gameId: number) {
-  return http.post<Game>(`/api/v1/gomoku/join/${gameId}`)
+export async function joinGame(gameId: number): Promise<Game> {
+  const res = await http.post<Envelope<Game>>(`/api/v1/gomoku/join/${gameId}`)
+  return res.data.data!
 }
 
-export function makeMove(gameId: number, payload: MovePayload) {
-  return http.post<Game>(`/api/v1/gomoku/move/${gameId}`, payload)
+export async function makeMove(
+  gameId: number,
+  payload: MovePayload,
+): Promise<Game> {
+  const res = await http.post<Envelope<Game>>(`/api/v1/gomoku/move/${gameId}`, payload)
+  return res.data.data!
 }
 
-export function getGame(gameId: number) {
-  return http.get<Game>(`/api/v1/gomoku/${gameId}`)
+export async function getGame(gameId: number): Promise<Game> {
+  const res = await http.get<Envelope<Game>>(`/api/v1/gomoku/${gameId}`)
+  return res.data.data!
 }
 
 // SSE 事件类型：单房间模式下的事件流
@@ -64,13 +72,15 @@ export type GameEvent =
   | { type: 'restart' }
 
 // 获取当前房间：有对局返回 Game，无对局返回 null（首次进入/Redis 重启后）
-export function getCurrent() {
-  return http.get<Game | null>('/api/v1/gomoku/current')
+export async function getCurrent(): Promise<Game | null> {
+  const res = await http.get<Envelope<Game | null>>('/api/v1/gomoku/current')
+  return res.data.data ?? null
 }
 
-// 重新开始：仅双方、finished 状态可调，败者执黑（id 不变，房间延续）
-export function restartGame() {
-  return http.post<Game>('/api/v1/gomoku/restart')
+// 重新开始：投票制（第一票记录 restartVotes，第二票真正重开），败者执黑
+export async function restartGame(): Promise<Game> {
+  const res = await http.post<Envelope<Game>>('/api/v1/gomoku/restart')
+  return res.data.data!
 }
 
 // 退出房间释放位置：离开页面时调用（sendBeacon，组件卸载时触发）

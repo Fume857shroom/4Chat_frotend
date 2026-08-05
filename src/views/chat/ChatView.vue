@@ -116,7 +116,7 @@ function retryMessage(tempId: string) {
   store.retryMessage(tempId)
 }
 
-function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: string } }): boolean {
+function isOwnMessage(msg: { _tempId?: string; sender?: { id: number; username: string } }): boolean {
   if (msg._tempId) {
     return true
   }
@@ -127,7 +127,7 @@ function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: 
 }
 
 // 自己的消息优先显示个人中心设置的新昵称
-function displayNameOf(msg: { _tempId?: string; sender?: { id: string; username: string } }): string {
+function displayNameOf(msg: { _tempId?: string; sender?: { id: number; username: string } }): string {
   if (isOwnMessage(msg)) {
     return userStore.profile?.nickname || msg.sender?.username || '我'
   }
@@ -136,7 +136,7 @@ function displayNameOf(msg: { _tempId?: string; sender?: { id: string; username:
 
 // --- Avatar helpers ---
 
-type MessageLike = { _tempId?: string; sender?: { id: string; username: string; avatar?: string } }
+type MessageLike = { _tempId?: string; sender?: { id: number; username: string; avatar?: string } }
 
 // 头像 URL：自己的临时消息（sender 无 avatar）用个人中心头像兜底
 function avatarOf(message: MessageLike): string {

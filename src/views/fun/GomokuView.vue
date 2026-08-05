@@ -101,8 +101,7 @@ async function onClickJoin() {
   error.value = null
   try {
     // 再次确认房间状态（可能刚变）
-    const res = await getCurrent()
-    const game = res.data
+    const game = await getCurrent()
     if (!game || game.status === 'finished') {
       // 无房间或已结束 → 创建（执黑）
       await createGame()
