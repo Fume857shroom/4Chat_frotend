@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, ref, onMounted } from 'vue'
 import { useUserStore } from '../../stores/user'
+import { useAuthStore } from '../../stores/auth'
 import ProfileEditDrawer from '../../components/user/ProfileEditDrawer.vue'
 import AvatarCropper from '../../components/user/AvatarCropper.vue'
 import { showToast } from '../../composables/toast'
 
 const userStore = useUserStore()
+const authStore = useAuthStore()
 
 const drawerOpen = ref(false)
 const drawerMode = ref<'profile' | 'status'>('profile')
@@ -47,7 +49,14 @@ function openStatusDrawer() {
   drawerOpen.value = true
 }
 
-// 选择文件后：本地预览 → 打开裁剪弹窗，确认后才上传
+// 退出登录
+async function handleLogout() {
+  const confirmed = window.confirm('确定退出登录？')
+  if (!confirmed) return
+  await authStore.logout()
+  // logout 内已跳转登录页，无需额外操作
+}
+
 function handleAvatarChange(e: Event) {
   const input = e.target as HTMLInputElement
   const file = input.files?.[0]
@@ -154,6 +163,10 @@ async function handleCropConfirm(blob: Blob) {
 
           <button type="button" class="profile-tabs__edit" @click="openProfileDrawer">
             编辑个人资料
+          </button>
+
+          <button type="button" class="profile-tabs__logout" @click="handleLogout">
+            退出登录
           </button>
         </div>
       </div>
@@ -430,6 +443,25 @@ async function handleCropConfirm(blob: Blob) {
 }
 
 .profile-tabs__edit:hover {
+  transform: translateY(-1px);
+}
+
+.profile-tabs__logout {
+  justify-self: end;
+  margin-top: 6px;
+  padding: 10px 22px;
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--pink);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.profile-tabs__logout:hover {
+  background: rgba(255, 45, 85, 0.1);
   transform: translateY(-1px);
 }
 
