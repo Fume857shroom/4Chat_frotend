@@ -4,7 +4,7 @@
 // ==========================================
 
 export interface UserProfile {
-  id: string
+  id: number
   username: string          // 登录账号（只读，不可修改）
   nickname: string          // 昵称
   avatar: string            // 头像 URL

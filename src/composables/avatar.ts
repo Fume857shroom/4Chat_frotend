@@ -13,11 +13,12 @@ export function resolveAvatarUrl(avatar?: string): string {
   return `${import.meta.env.VITE_API_BASE_URL || ''}${avatar}`
 }
 
-// 按 userId 哈希生成稳定色相，占位符背景色同一用户恒定
-export function avatarHue(id: string): number {
+// 按 userId 哈希生成稳定色相，占位符背景色同一用户恒定（id 统一为数字，兼容旧字符串）
+export function avatarHue(id: string | number): number {
+  const raw = String(id)
   let hash = 0
-  for (let i = 0; i < id.length; i++) {
-    hash = (hash * 31 + id.charCodeAt(i)) >>> 0
+  for (let i = 0; i < raw.length; i++) {
+    hash = (hash * 31 + raw.charCodeAt(i)) >>> 0
   }
   return hash % 360
 }

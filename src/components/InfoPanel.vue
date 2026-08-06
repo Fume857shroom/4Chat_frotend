@@ -29,6 +29,10 @@ function formatShortTime(iso: string): string {
     <header class="info-panel__header">
       <span class="info-panel__dot"></span>
       <h2>{{ title }}</h2>
+      <!-- 标题行右侧自定义入口（如“查看全部”） -->
+      <span v-if="$slots.extra" class="info-panel__extra">
+        <slot name="extra" />
+      </span>
       <span v-if="count !== undefined" class="info-panel__count">{{ count }}</span>
     </header>
     <div class="info-panel__body">
@@ -200,5 +204,11 @@ function formatShortTime(iso: string): string {
   font-weight: 700;
   color: #02131a;
   background: linear-gradient(90deg, var(--cyan), #8dffcf);
+}
+
+.info-panel__extra {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
 }
 </style>

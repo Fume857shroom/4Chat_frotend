@@ -1,6 +1,6 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
-import { sendMessage as apiSendMessage, fetchHistory as apiFetchHistory } from '../../api/chat/message'
+import { sendMessage as apiSendMessage, sendFileMessage as apiSendFileMessage, fetchHistory as apiFetchHistory } from '../../api/chat/message'
 import type { MessageDisplay, MessageItem } from '../../api/chat/message'
 import { useAuthStore } from '../auth'
 import { notify } from '../../composables/notification'
@@ -12,6 +12,8 @@ export const useMessageStore = defineStore('message', () => {
   // --- State ---
   const messages = ref<MessageDisplay[]>([])
   const hasMore = ref(true)
+  // 后端返回的下一页游标（文档：翻页必须带上一页的 nextCursor）
+  let nextCursor: string | null = null
   const isSending = ref(false)
   const isLoadingHistory = ref(false)
   const historyLoadError = ref<string | null>(null)
@@ -89,6 +91,7 @@ export const useMessageStore = defineStore('message', () => {
         _state: 'sent' as const,
       }))
       hasMore.value = data.hasMore
+      nextCursor = data.nextCursor
     } catch {
       historyLoadError.value = '初始消息加载失败'
       console.error('[message] 初始消息加载失败')
@@ -105,7 +108,7 @@ export const useMessageStore = defineStore('message', () => {
     isLoadingHistory.value = true
     historyLoadError.value = null
 
-    const cursor = messages.value.length > 0 ? messages.value[0].id : undefined
+    const cursor = nextCursor ?? undefined
 
     try {
       const data = await apiFetchHistory(cursor, INCREMENTAL_LIMIT)
@@ -115,6 +118,7 @@ export const useMessageStore = defineStore('message', () => {
       }))
       messages.value = [...historyItems, ...messages.value]
       hasMore.value = data.hasMore
+      nextCursor = data.nextCursor
     } catch {
       historyLoadError.value = '历史消息加载失败'
       console.error('[message] 历史消息加载失败')
@@ -134,6 +138,7 @@ export const useMessageStore = defineStore('message', () => {
   function clearMessages() {
     messages.value = []
     hasMore.value = true
+    nextCursor = null
     isSending.value = false
     isLoadingHistory.value = false
     historyLoadError.value = null
@@ -153,7 +158,7 @@ export const useMessageStore = defineStore('message', () => {
       content,
       type: 'TEXT',
       createdAt: new Date().toISOString(),
-      sender: { id: '', username: '' },
+      sender: { id: 0, username: '' },
       _state: 'sending',
       _tempId: tempId,
     }
@@ -173,6 +178,26 @@ export const useMessageStore = defineStore('message', () => {
           ? { ...m, _state: 'failed' as const }
           : m,
       )
+    } finally {
+      isSending.value = false
+    }
+  }
+
+  async function sendFile(file: File, content?: string): Promise<boolean> {
+    if (isSending.value) {
+      return false
+    }
+
+    isSending.value = true
+
+    try {
+      // 文件消息无法乐观展示（上传成功才知道 URL），成功后直接追加
+      const real = await apiSendFileMessage(file, content)
+      messages.value = [...messages.value, { ...real, _state: 'sent' as const }]
+      return true
+    } catch {
+      console.error('[message] 文件发送失败')
+      return false
     } finally {
       isSending.value = false
     }
@@ -255,6 +280,7 @@ export const useMessageStore = defineStore('message', () => {
     retryLoadHistory,
     clearMessages,
     sendMessage,
+    sendFile,
     retryMessage,
     refreshLatestMessages,
   }

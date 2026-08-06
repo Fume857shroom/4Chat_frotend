@@ -1,5 +1,6 @@
 import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
+import { useRouter } from 'vue-router'
 import type { AuthUser } from '../api/auth'
 import type { LoginPayload, RegisterPayload } from '../api/auth'
 import { login, register } from '../api/auth'
@@ -8,35 +9,46 @@ const TOKEN_KEY = 'token'
 const USER_KEY = 'auth_user'
 
 export const useAuthStore = defineStore('auth', () => {
+  const router = useRouter()
   const token = ref<string | null>(localStorage.getItem(TOKEN_KEY))
   const user = ref<AuthUser | null>(readUser())
   const isAuthenticated = computed(() => Boolean(token.value))
 
   async function loginAction(payload: LoginPayload) {
     const result = await login(payload)
-    const decoded = parseJwtPayload(result.token)
-    const resolvedUser: AuthUser = {
-      id: decoded?.id || '',
+    // 后端已返回数字 id，直接使用（不再依赖 JWT 解析）
+    persistAuth(result.token, {
+      id: result.user.id,
       username: result.user.username,
-    }
-    persistAuth(result.token, resolvedUser)
+    })
   }
 
   async function registerAction(payload: RegisterPayload) {
     const result = await register(payload)
-    const decoded = parseJwtPayload(result.token)
-    const resolvedUser: AuthUser = {
-      id: decoded?.id || '',
+    persistAuth(result.token, {
+      id: result.user.id,
       username: result.user.username,
-    }
-    persistAuth(result.token, resolvedUser)
+    })
   }
 
-  function logout() {
+  async function logout() {
+    // 1. 通知后端：拉黑 token + 清在线状态（sendBeacon 页面关闭场景也能送达）
+    const rawToken = localStorage.getItem(TOKEN_KEY)
+    if (rawToken) {
+      const baseURL = import.meta.env.VITE_API_BASE_URL || ''
+      navigator.sendBeacon(
+        `${baseURL}/api/v1/auth/logout?token=${encodeURIComponent(rawToken)}`,
+      )
+    }
+
+    // 2. 清本地缓存（无论接口是否送达都清）
     token.value = null
     user.value = null
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(USER_KEY)
+
+    // 3. 跳转登录页
+    router.push({ name: 'login' })
   }
 
   function persistAuth(nextToken: string, nextUser: AuthUser | null) {
@@ -60,23 +72,6 @@ export const useAuthStore = defineStore('auth', () => {
     logout,
   }
 })
-
-/** Decode JWT payload to extract user id and username */
-function parseJwtPayload(token: string): { id: string; username: string } | null {
-  try {
-    const base64Url = token.split('.')[1]
-    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/')
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split('')
-        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
-        .join(''),
-    )
-    return JSON.parse(jsonPayload)
-  } catch {
-    return null
-  }
-}
 
 function readUser(): AuthUser | null {
   const raw = localStorage.getItem(USER_KEY)

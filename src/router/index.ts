@@ -2,8 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router'
 import { authRoutes } from './modules/auth'
 import { chatRoutes } from './modules/chat'
 import { userRoutes } from './modules/user'
+import { funRoutes } from './modules/fun'
 
-const routes = [...authRoutes, ...chatRoutes, ...userRoutes]
+const routes = [...authRoutes, ...chatRoutes, ...userRoutes, ...funRoutes]
 
 const router = createRouter({
   history: createWebHistory(),

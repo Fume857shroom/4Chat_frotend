@@ -92,7 +92,9 @@ export const useOnlineStore = defineStore('online', () => {
     try {
       const res = await apiFetchOnlineUsers()
       // Spec response shape: { code, data: OnlineUser[], total }
-      onlineUsers.value = Array.isArray(res.data) ? res.data : []
+      // 稳定排序：按 id 升序，避免轮询时顺序乱跳
+      const list = Array.isArray(res.data) ? res.data : []
+      onlineUsers.value = [...list].sort((a, b) => a.id - b.id)
     } catch (err) {
       console.error('[online] 获取在线用户列表失败:', err)
     }

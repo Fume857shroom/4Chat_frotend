@@ -3,11 +3,16 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ChatComposer from '../../components/chat/ChatComposer.vue'
 import InfoPanel from '../../components/InfoPanel.vue'
 import OnlineUsers from '../../components/chat/OnlineUsers.vue'
+import MediaLibrary from '../../components/chat/MediaLibrary.vue'
+import FilePreview from '../../components/chat/FilePreview.vue'
 import CreateAnnounceDialog from '../../components/chat/CreateAnnounceDialog.vue'
 import { useMessageStore } from '../../stores/chat/message'
+import type { FileInfo } from '../../api/chat/message'
+import { fileUrlOf, formatFileSize, fileIconOf, isImageExt, downloadFile } from '../../composables/file'
 import { useAuthStore } from '../../stores/auth'
 import { useAnnounceStore } from '../../stores/chat/announce'
 import { requestNotifyPermission, resetUnread } from '../../composables/notification'
+import { showToast } from '../../composables/toast'
 import { useUserStore } from '../../stores/user'
 import { resolveAvatarUrl, avatarHue } from '../../composables/avatar'
 
@@ -111,11 +116,48 @@ function handleSend() {
   store.sendMessage(text)
 }
 
+// 前端文件大小限制（后端暂无限制，文档建议前端先行限制；500MB 内不误伤大视频）
+const MAX_FILE_SIZE = 500 * 1024 * 1024
+
+// 发送文件：上传成功后消息列表追加文件消息，失败 toast 提示
+async function handleSendFile(file: File) {
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('文件超过 500MB，无法上传')
+    return
+  }
+  const ok = await store.sendFile(file)
+  showToast(ok ? '文件已发送' : '文件发送失败')
+  if (ok) {
+    scrollToBottom(true)
+  }
+}
+
+// 图片查看器状态（聊天页与媒体库共用 FilePreview 组件）
+const previewVisible = ref(false)
+const previewFile = ref<{ url: string; name: string; size: string } | null>(null)
+
+function openPreview(file: FileInfo) {
+  previewFile.value = {
+    url: fileUrlOf(file.url),
+    name: file.name,
+    size: formatFileSize(file.size),
+  }
+  previewVisible.value = true
+}
+
+// 非图片文件：blob 下载到本地（跨域 download 属性无效，见 composables/file）
+async function onDownloadFile(file: FileInfo) {
+  const ok = await downloadFile(fileUrlOf(file.url), file.name)
+  if (!ok) {
+    showToast('下载失败，已在新窗口打开')
+  }
+}
+
 function retryMessage(tempId: string) {
   store.retryMessage(tempId)
 }
 
-function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: string } }): boolean {
+function isOwnMessage(msg: { _tempId?: string; sender?: { id: number; username: string } }): boolean {
   if (msg._tempId) {
     return true
   }
@@ -126,7 +168,7 @@ function isOwnMessage(msg: { _tempId?: string; sender?: { id: string; username: 
 }
 
 // 自己的消息优先显示个人中心设置的新昵称
-function displayNameOf(msg: { _tempId?: string; sender?: { id: string; username: string } }): string {
+function displayNameOf(msg: { _tempId?: string; sender?: { id: number; username: string } }): string {
   if (isOwnMessage(msg)) {
     return userStore.profile?.nickname || msg.sender?.username || '我'
   }
@@ -135,7 +177,7 @@ function displayNameOf(msg: { _tempId?: string; sender?: { id: string; username:
 
 // --- Avatar helpers ---
 
-type MessageLike = { _tempId?: string; sender?: { id: string; username: string; avatar?: string } }
+type MessageLike = { _tempId?: string; sender?: { id: number; username: string; avatar?: string } }
 
 // 头像 URL：自己的临时消息（sender 无 avatar）用个人中心头像兜底
 function avatarOf(message: MessageLike): string {
@@ -231,7 +273,12 @@ function handleWindowFocus() {
 }
 
 onMounted(async () => {
-  requestNotifyPermission()
+  const perm = requestNotifyPermission()
+  if (perm === 'denied') {
+    showToast('通知权限被拒绝，新消息将仅通过标题提示')
+  } else if (perm === 'unsupported') {
+    showToast('当前环境不支持系统通知（需 HTTPS）')
+  }
   window.addEventListener('visibilitychange', handleVisibilityChange)
   window.addEventListener('focus', handleWindowFocus)
   store.connectEventSource()
@@ -267,9 +314,7 @@ onUnmounted(() => {
         :error="announceStore.error"
       />
 
-      <InfoPanel title="媒体库" accent="#ffe45c">
-        <p class="info-panel__placeholder">正在开发</p>
-      </InfoPanel>
+      <MediaLibrary />
     </aside>
 
     <div class="chat-room">
@@ -307,6 +352,7 @@ onUnmounted(() => {
           :key="message.id"
           class="message-row"
           :class="{ 'message-row--own': isOwnMessage(message) }"
+          style="width: 100%"
         >
           <!-- 头像：有图显示图片，无图显示首字符占位符 -->
           <span
@@ -318,19 +364,50 @@ onUnmounted(() => {
             <template v-else>{{ avatarTextOf(message) }}</template>
           </span>
 
-          <article
-            class="message-card"
-            :class="{
-              'message-card--own': isOwnMessage(message),
-              'message-card--sending': message._state === 'sending',
-              'message-card--failed': message._state === 'failed',
-            }"
-          >
-            <header class="message-card__name">{{ displayNameOf(message) }}</header>
-            <p>{{ message.content }}</p>
-            <footer class="message-card__meta">
-              <span class="message-card__date">{{ formatDate(message.createdAt) }}</span>
-              <span class="message-card__time">
+          <div class="message-body">
+            <!-- 用户名：气泡外上方，紧贴气泡左对齐 -->
+            <span class="message-body__name">{{ displayNameOf(message) }}</span>
+
+            <article
+              class="message-card"
+              :class="{
+                'message-card--own': isOwnMessage(message),
+                'message-card--sending': message._state === 'sending',
+                'message-card--failed': message._state === 'failed',
+              }"
+            >
+              <!-- 文件消息：图片直接渲染缩略图（点击开查看器），其他类型文件卡片（点击下载） -->
+              <template v-if="message.type === 'FILE' && message.file">
+                <img
+                  v-if="isImageExt(message.file.extension)"
+                  class="message-image"
+                  :src="fileUrlOf(message.file.url)"
+                  :alt="message.file.name"
+                  :title="message.file.name"
+                  @click="openPreview(message.file)"
+                />
+                <a
+                  v-else
+                  class="message-file"
+                  :title="message.file.name"
+                  @click.prevent="onDownloadFile(message.file)"
+                >
+                  <span class="message-file__icon">{{ fileIconOf(message.file.extension) }}</span>
+                  <span class="message-file__meta">
+                    <span class="message-file__name">{{ message.file.name }}</span>
+                    <span class="message-file__size">{{ formatFileSize(message.file.size) }}</span>
+                  </span>
+                  <span class="message-file__download">⬇</span>
+                </a>
+                <p v-if="message.content">{{ message.content }}</p>
+              </template>
+              <p v-else>{{ message.content }}</p>
+            </article>
+
+            <!-- 时间：气泡同一行右外侧，紧贴气泡右边界（自己：左外侧） -->
+            <div class="message-body__meta">
+              <span class="message-body__date">{{ formatDate(message.createdAt) }}</span>
+              <span class="message-body__time">
                 {{ formatTime(message.createdAt) }}
                 <span v-if="message._state === 'sending'" class="message-card__status message-card__status--sending"></span>
               </span>
@@ -342,8 +419,8 @@ onUnmounted(() => {
               >
                 重试
               </button>
-            </footer>
-          </article>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -357,12 +434,26 @@ onUnmounted(() => {
         有新消息
       </div>
 
-      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" @announce="showCreateDialog = true" />
+      <ChatComposer
+        v-model="draft"
+        :disabled="store.isSending"
+        @submit="handleSend"
+        @file="handleSendFile"
+        @announce="showCreateDialog = true"
+      />
 
       <CreateAnnounceDialog
         v-if="showCreateDialog"
         @success="showCreateDialog = false"
         @close="showCreateDialog = false"
+      />
+
+      <FilePreview
+        :visible="previewVisible"
+        :url="previewFile?.url ?? ''"
+        :name="previewFile?.name"
+        :size="previewFile?.size"
+        @close="previewVisible = false"
       />
     </div>
   </section>
@@ -429,7 +520,7 @@ onUnmounted(() => {
   flex-direction: column;
   gap: 12px;
   min-height: 0;
-  padding: 24px;
+  padding: 24px 80px 24px 24px;
   overflow-y: auto;
   overflow-x: hidden;
   /* 滚动条透明：轨道不可见，滑块半透明 */
@@ -459,6 +550,7 @@ onUnmounted(() => {
   display: flex;
   align-items: flex-start;
   gap: 10px;
+  width: 100%;
 }
 
 .message-row--own {
@@ -488,42 +580,66 @@ onUnmounted(() => {
   font-weight: 600;
 }
 
-/* --- 聊天气泡：紧凑适配文字 --- */
-.message-card {
-  width: fit-content;
+/* --- 消息主体容器：用户名 / 气泡 / 时间 --- */
+.message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  position: relative;
   max-width: min(60%, 460px);
-  padding: 10px 14px;
-  border-radius: 18px 18px 18px 6px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* 姓名：气泡左上角 */
-.message-card__name {
-  margin-bottom: 4px;
+.message-row--own .message-body {
+  align-items: flex-end;
+}
+
+/* 用户名：气泡外上方，紧贴气泡左对齐 */
+.message-body__name {
+  margin-bottom: 2px;
   color: var(--muted);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.06em;
 }
 
+/* --- 聊天气泡：长方形圆角条状 --- */
+.message-card {
+  width: fit-content;
+  max-width: 100%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
 .message-card p {
   line-height: 1.6;
 }
 
-/* 日期（上）/ 时间（下）：气泡右下角，右对齐叠加 */
-.message-card__meta {
+/* 时间：气泡同一行右外侧（自己：左外侧），紧贴气泡右边界 */
+.message-body__meta {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  transform: translateX(calc(100% + 8px));
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
   gap: 2px;
-  margin-top: 6px;
   color: rgba(255, 255, 255, 0.35);
   font-size: 10px;
   line-height: 1.4;
+  white-space: nowrap;
 }
 
-.message-card__time {
+.message-row--own .message-body__meta {
+  left: 0;
+  right: auto;
+  transform: translateX(calc(-100% - 8px));
+  align-items: flex-end;
+}
+
+.message-body__time {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -557,8 +673,80 @@ onUnmounted(() => {
   }
 }
 
+/* --- 图片消息：直接渲染缩略图 --- */
+.message-image {
+  display: block;
+  max-width: 260px;
+  max-height: 220px;
+  border-radius: 10px;
+  cursor: zoom-in;
+  transition: transform 0.2s;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+}
+
+/* --- 文件消息卡片 --- */
+.message-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s;
+}
+
+.message-file:hover {
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.message-file__icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.message-file__meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.message-file__name {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-file__size {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.message-file__download {
+  flex-shrink: 0;
+  color: var(--cyan);
+  font-size: 14px;
+}
+
+/* --- 文件消息的描述文本 --- */
+.message-card p {
+  margin-top: 6px;
+}
+
+.message-card > p:first-child {
+  margin-top: 0;
+}
+
 .message-card--own {
-  border-radius: 18px 18px 6px 18px;
   background: linear-gradient(135deg, rgba(0, 240, 255, 0.12), rgba(255, 45, 85, 0.12));
 }
 

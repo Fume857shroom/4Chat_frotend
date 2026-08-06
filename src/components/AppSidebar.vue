@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { showToast } from '../composables/toast'
 import { useUserStore } from '../stores/user'
 import { resolveAvatarUrl, avatarHue } from '../composables/avatar'
 
@@ -12,10 +11,6 @@ const items = [
     icon: 'C',
   },
 ]
-
-function handleDevClick() {
-  showToast('正在开发')
-}
 
 // 底部个人中心头像入口
 const avatarSrc = computed(() => resolveAvatarUrl(userStore.profile?.avatar))
@@ -49,9 +44,9 @@ const avatarStyle = computed(() => {
         <span class="app-sidebar__icon">{{ item.icon }}</span>
       </RouterLink>
 
-      <button type="button" class="app-sidebar__link" title="乐" @click="handleDevClick">
+      <RouterLink to="/fun" class="app-sidebar__link" active-class="is-active" title="乐">
         <span class="app-sidebar__icon">乐</span>
-      </button>
+      </RouterLink>
     </nav>
 
     <!-- 个人中心入口：头像随 profile.avatar 实时联动 -->
