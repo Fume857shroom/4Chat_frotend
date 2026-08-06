@@ -64,7 +64,12 @@ function avatarStyleOf(user: { id: number; username: string; avatar?: string }):
           <img v-if="avatarOf(user)" :src="avatarOf(user)" alt="" />
           <template v-else>{{ avatarTextOf(user) }}</template>
         </span>
-        <span class="online-users__status"></span>
+        <!-- 心情气泡：与个人中心一致的胶囊样式，未设置则保留绿点 -->
+        <span v-if="user.status" class="online-users__status" :title="user.status">
+          <span class="online-users__status-dot"></span>
+          <span class="online-users__status-text">{{ user.status }}</span>
+        </span>
+        <span v-else class="online-users__dot"></span>
         <span class="online-users__name">{{ displayNameOf(user) }}</span>
       </li>
     </ul>
@@ -104,7 +109,7 @@ function avatarStyleOf(user: { id: number; username: string; avatar?: string }):
   background: rgba(255, 255, 255, 0.04);
 }
 
-.online-users__status {
+.online-users__dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -137,8 +142,40 @@ function avatarStyleOf(user: { id: number; username: string; avatar?: string }):
 }
 
 .online-users__name {
+  flex: 1;
+  min-width: 0;
   font-size: 13px;
   color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 心情气泡（与个人中心一致的胶囊样式，尺寸适配列表行高） */
+.online-users__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  max-width: 160px;
+  padding: 3px 10px;
+  border: 1px solid rgba(255, 228, 92, 0.35);
+  border-radius: 999px;
+  background: rgba(255, 228, 92, 0.08);
+  color: var(--yellow);
+  font-size: 12px;
+}
+
+.online-users__status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 6px rgba(255, 228, 92, 0.8);
+  flex-shrink: 0;
+}
+
+.online-users__status-text {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

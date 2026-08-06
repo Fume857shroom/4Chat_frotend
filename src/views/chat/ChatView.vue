@@ -3,8 +3,12 @@ import { ref, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import ChatComposer from '../../components/chat/ChatComposer.vue'
 import InfoPanel from '../../components/InfoPanel.vue'
 import OnlineUsers from '../../components/chat/OnlineUsers.vue'
+import MediaLibrary from '../../components/chat/MediaLibrary.vue'
+import FilePreview from '../../components/chat/FilePreview.vue'
 import CreateAnnounceDialog from '../../components/chat/CreateAnnounceDialog.vue'
 import { useMessageStore } from '../../stores/chat/message'
+import type { FileInfo } from '../../api/chat/message'
+import { fileUrlOf, formatFileSize, fileIconOf, isImageExt, downloadFile } from '../../composables/file'
 import { useAuthStore } from '../../stores/auth'
 import { useAnnounceStore } from '../../stores/chat/announce'
 import { requestNotifyPermission, resetUnread } from '../../composables/notification'
@@ -110,6 +114,43 @@ function handleSend() {
   draft.value = ''
 
   store.sendMessage(text)
+}
+
+// 前端文件大小限制（后端暂无限制，文档建议前端先行限制；500MB 内不误伤大视频）
+const MAX_FILE_SIZE = 500 * 1024 * 1024
+
+// 发送文件：上传成功后消息列表追加文件消息，失败 toast 提示
+async function handleSendFile(file: File) {
+  if (file.size > MAX_FILE_SIZE) {
+    showToast('文件超过 500MB，无法上传')
+    return
+  }
+  const ok = await store.sendFile(file)
+  showToast(ok ? '文件已发送' : '文件发送失败')
+  if (ok) {
+    scrollToBottom(true)
+  }
+}
+
+// 图片查看器状态（聊天页与媒体库共用 FilePreview 组件）
+const previewVisible = ref(false)
+const previewFile = ref<{ url: string; name: string; size: string } | null>(null)
+
+function openPreview(file: FileInfo) {
+  previewFile.value = {
+    url: fileUrlOf(file.url),
+    name: file.name,
+    size: formatFileSize(file.size),
+  }
+  previewVisible.value = true
+}
+
+// 非图片文件：blob 下载到本地（跨域 download 属性无效，见 composables/file）
+async function onDownloadFile(file: FileInfo) {
+  const ok = await downloadFile(fileUrlOf(file.url), file.name)
+  if (!ok) {
+    showToast('下载失败，已在新窗口打开')
+  }
 }
 
 function retryMessage(tempId: string) {
@@ -273,9 +314,7 @@ onUnmounted(() => {
         :error="announceStore.error"
       />
 
-      <InfoPanel title="媒体库" accent="#ffe45c">
-        <p class="info-panel__placeholder">正在开发</p>
-      </InfoPanel>
+      <MediaLibrary />
     </aside>
 
     <div class="chat-room">
@@ -337,7 +376,32 @@ onUnmounted(() => {
                 'message-card--failed': message._state === 'failed',
               }"
             >
-              <p>{{ message.content }}</p>
+              <!-- 文件消息：图片直接渲染缩略图（点击开查看器），其他类型文件卡片（点击下载） -->
+              <template v-if="message.type === 'FILE' && message.file">
+                <img
+                  v-if="isImageExt(message.file.extension)"
+                  class="message-image"
+                  :src="fileUrlOf(message.file.url)"
+                  :alt="message.file.name"
+                  :title="message.file.name"
+                  @click="openPreview(message.file)"
+                />
+                <a
+                  v-else
+                  class="message-file"
+                  :title="message.file.name"
+                  @click.prevent="onDownloadFile(message.file)"
+                >
+                  <span class="message-file__icon">{{ fileIconOf(message.file.extension) }}</span>
+                  <span class="message-file__meta">
+                    <span class="message-file__name">{{ message.file.name }}</span>
+                    <span class="message-file__size">{{ formatFileSize(message.file.size) }}</span>
+                  </span>
+                  <span class="message-file__download">⬇</span>
+                </a>
+                <p v-if="message.content">{{ message.content }}</p>
+              </template>
+              <p v-else>{{ message.content }}</p>
             </article>
 
             <!-- 时间：气泡同一行右外侧，紧贴气泡右边界（自己：左外侧） -->
@@ -370,12 +434,26 @@ onUnmounted(() => {
         有新消息
       </div>
 
-      <ChatComposer v-model="draft" :disabled="store.isSending" @submit="handleSend" @announce="showCreateDialog = true" />
+      <ChatComposer
+        v-model="draft"
+        :disabled="store.isSending"
+        @submit="handleSend"
+        @file="handleSendFile"
+        @announce="showCreateDialog = true"
+      />
 
       <CreateAnnounceDialog
         v-if="showCreateDialog"
         @success="showCreateDialog = false"
         @close="showCreateDialog = false"
+      />
+
+      <FilePreview
+        :visible="previewVisible"
+        :url="previewFile?.url ?? ''"
+        :name="previewFile?.name"
+        :size="previewFile?.size"
+        @close="previewVisible = false"
       />
     </div>
   </section>
@@ -593,6 +671,79 @@ onUnmounted(() => {
   to {
     transform: rotate(360deg);
   }
+}
+
+/* --- 图片消息：直接渲染缩略图 --- */
+.message-image {
+  display: block;
+  max-width: 260px;
+  max-height: 220px;
+  border-radius: 10px;
+  cursor: zoom-in;
+  transition: transform 0.2s;
+}
+
+.message-image:hover {
+  transform: scale(1.02);
+}
+
+/* --- 文件消息卡片 --- */
+.message-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 210px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.05);
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.2s;
+}
+
+.message-file:hover {
+  border-color: rgba(0, 240, 255, 0.4);
+}
+
+.message-file__icon {
+  font-size: 22px;
+  flex-shrink: 0;
+}
+
+.message-file__meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.message-file__name {
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-file__size {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.message-file__download {
+  flex-shrink: 0;
+  color: var(--cyan);
+  font-size: 14px;
+}
+
+/* --- 文件消息的描述文本 --- */
+.message-card p {
+  margin-top: 6px;
+}
+
+.message-card > p:first-child {
+  margin-top: 0;
 }
 
 .message-card--own {

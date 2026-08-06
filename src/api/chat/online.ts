@@ -5,6 +5,8 @@ export interface OnlineUser {
   username: string
   // 头像相对路径（/uploads/...），空字符串或缺失表示无头像
   avatar?: string
+  // 心情状态（个人中心设置），可能为空字符串或缺失
+  status?: string
 }
 
 export interface OnlineListResponse {
