@@ -1,11 +1,12 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import CoverArt from './CoverArt.vue'
+import SongDetail from './SongDetail.vue'
 import type { MusicChartItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
 
-// 榜单条目不返回时长/封面：时长交给媒体元数据回填，封面走占位图
+// 一行三个点击区：封面=试听，歌名区=详情，留言条=详情
 const player = usePlayerStore()
 const shareStore = useShareStore()
 
@@ -21,6 +22,10 @@ function onPlay(item: MusicChartItem) {
     duration: item.duration,
     coverUrl: item.coverUrl,
   })
+}
+
+function onDetail(item: MusicChartItem) {
+  void shareStore.openDetail(item.songmid)
 }
 
 function scoreText(avgScore: number): string {
@@ -57,35 +62,69 @@ function starsOf(score: number): string {
 
     <ol v-else class="month-chart__list">
       <li v-for="item in shareStore.chart" :key="item.songmid">
-        <button
-          type="button"
+        <div
           class="chart-row"
           :class="{
             'chart-row--current': player.track?.songmid === item.songmid,
             'chart-row--top': item.rank <= 3,
+            'chart-row--open': shareStore.detailSongmid === item.songmid,
           }"
-          :title="`试听 ${item.title}`"
-          @click="onPlay(item)"
         >
-          <span class="chart-row__rank">{{ item.rank }}</span>
-          <CoverArt :seed="item.songmid" :text="item.title" :size="40" :radius="10" />
-          <span class="chart-row__body">
+          <button
+            type="button"
+            class="chart-row__play"
+            :title="`试听 ${item.title}`"
+            @click="onPlay(item)"
+          >
+            <CoverArt
+              :src="item.coverUrl"
+              :seed="item.songmid"
+              :text="item.title"
+              :size="44"
+              :radius="10"
+            />
+            <span class="chart-row__play-hint">▶</span>
+          </button>
+
+          <button
+            type="button"
+            class="chart-row__main"
+            :title="`查看 ${item.title} 的评分与留言`"
+            @click="onDetail(item)"
+          >
             <span class="chart-row__song">
+              <span class="chart-row__rank">{{ item.rank }}</span>
               <span class="chart-row__name">{{ item.title }}</span>
               <span class="chart-row__artist">- {{ item.artist }}</span>
             </span>
             <span class="chart-row__stats">
               <span class="chart-row__score">{{ starsOf(item.avgScore) }}</span>
               <span class="chart-row__avg">{{ scoreText(item.avgScore) }} 分</span>
-              <span class="chart-row__count">{{ item.shareCount }} 次分享</span>
+              <span class="chart-row__count">{{ item.shareCount }} 人推荐</span>
             </span>
-            <span v-if="item.topNote" class="chart-row__note">
-              「{{ item.topNote }}」 —— {{ item.topSharedName }}
+          </button>
+
+          <button
+            type="button"
+            class="chart-row__notes"
+            :title="`查看 ${item.title} 的全部留言`"
+            @click="onDetail(item)"
+          >
+            <span v-for="note in item.notes" :key="note.id" class="chart-row__note">
+              <strong class="chart-row__note-who">{{ note.sharedName }}</strong>
+              <span class="chart-row__note-star">{{ note.score }}分</span>
+              <span class="chart-row__note-text">{{ note.note }}</span>
             </span>
-          </span>
-        </button>
+            <span v-if="item.notes.length === 0" class="chart-row__note chart-row__note--empty">
+              还没有别人的留言
+            </span>
+            <span class="chart-row__more">全部 {{ item.shareCount }} 条 ›</span>
+          </button>
+        </div>
       </li>
     </ol>
+
+    <SongDetail v-if="shareStore.detailSongmid" @close="shareStore.closeDetail()" />
   </section>
 </template>
 
@@ -160,7 +199,7 @@ function starsOf(score: number): string {
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 0;
+  padding: 0 4px 0 0;
   list-style: none;
   overflow-y: auto;
   scrollbar-width: thin;
@@ -184,19 +223,15 @@ function starsOf(score: number): string {
   flex: 0 0 auto;
 }
 
-/* --- 榜单行 --- */
+/* --- 榜单行：一行三格，各自可点 --- */
 .chart-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  width: 100%;
-  padding: 10px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 260px);
+  align-items: stretch;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
   background: rgba(255, 255, 255, 0.04);
   color: var(--text);
-  text-align: left;
-  cursor: pointer;
   transition:
     background 0.2s,
     border-color 0.2s;
@@ -212,9 +247,86 @@ function starsOf(score: number): string {
   background: linear-gradient(90deg, rgba(0, 240, 255, 0.12), rgba(255, 45, 85, 0.06));
 }
 
+.chart-row--open {
+  border-color: rgba(0, 240, 255, 0.45);
+}
+
+.chart-row__play,
+.chart-row__main,
+.chart-row__notes {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.chart-row__play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 10px 0 10px 10px;
+  border-radius: var(--radius-md) 0 0 var(--radius-md);
+}
+
+/* 封面右上角的试听角标，hover 才显形，不占版面 */
+.chart-row__play-hint {
+  position: absolute;
+  right: 4px;
+  bottom: 6px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  color: var(--cyan);
+  font-size: 9px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.chart-row__play:hover .chart-row__play-hint,
+.chart-row--current .chart-row__play-hint {
+  opacity: 1;
+}
+
+.chart-row__main {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px 10px;
+}
+
+.chart-row__notes {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  min-width: 0;
+  padding: 10px 12px 10px 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.chart-row__notes:hover {
+  background: rgba(0, 240, 255, 0.05);
+}
+
+.chart-row__song {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
 .chart-row__rank {
   flex-shrink: 0;
-  width: 22px;
+  width: 16px;
   color: var(--muted);
   font-family: var(--font-display);
   font-size: 15px;
@@ -224,21 +336,6 @@ function starsOf(score: number): string {
 
 .chart-row--top .chart-row__rank {
   color: var(--yellow);
-}
-
-.chart-row__body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.chart-row__song {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
 }
 
 .chart-row__name {
@@ -282,12 +379,60 @@ function starsOf(score: number): string {
 }
 
 .chart-row__note {
-  color: var(--muted);
-  font-size: 12px;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  min-width: 0;
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-row__note-who {
+  flex-shrink: 0;
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--cyan);
+  font-weight: 600;
+}
+
+.chart-row__note-star {
+  flex-shrink: 0;
+  color: var(--yellow);
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-row__note-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.5;
+}
+
+.chart-row__note--empty {
+  color: rgba(255, 255, 255, 0.3);
+}
+
+.chart-row__more {
+  color: rgba(0, 240, 255, 0.65);
+  font-size: 11px;
+}
+
+/* 窄屏放不下三格：留言条换到第二行，仍保持在歌曲右侧的信息之下 */
+@media (max-width: 1400px) {
+  .chart-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .chart-row__notes {
+    grid-column: 1 / -1;
+    border-left: 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    padding: 8px 10px;
+  }
 }
 </style>

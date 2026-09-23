@@ -12,6 +12,8 @@ import type {
   MusicPlayInfo,
   MusicSearchItem,
   MusicShareItem,
+  MusicSongDetail,
+  UpdateShareDTO,
 } from '../../types/music'
 
 /** 搜索歌曲：keyword 为歌名（可带歌手名） */
@@ -34,6 +36,12 @@ export async function fetchPlayInfo(songmid: string): Promise<MusicPlayInfo> {
 /** 分享一首歌（打分 + 评语） */
 export async function createShare(dto: CreateShareDTO): Promise<MusicShareItem> {
   const res = await http.post<Envelope<MusicShareItem>>('/api/v1/music/share', dto)
+  return res.data.data!
+}
+
+/** 修改自己的那条评分/留言（一人一歌一条，重复评分即改这条） */
+export async function updateShare(dto: UpdateShareDTO): Promise<MusicShareItem> {
+  const res = await http.put<Envelope<MusicShareItem>>('/api/v1/music/share', dto)
   return res.data.data!
 }
 
@@ -72,4 +80,19 @@ export async function fetchChart(month?: string): Promise<MusicChartItem[]> {
 
   const res = await http.get<Envelope<MusicChartItem[]>>('/api/v1/music/chart', { params })
   return res.data.data ?? []
+}
+
+/**
+ * 单曲详情：评分分布 + 当月全部留言 + 我在这首歌上的评分记录。
+ * month 只过滤 list/stats，mine 不受它影响 —— 判断「本月改」还是「往月已锁」要用后者。
+ */
+export async function fetchSongDetail(songmid: string, month?: string): Promise<MusicSongDetail> {
+  const params: Record<string, string> = { songmid }
+
+  if (month) {
+    params.month = month
+  }
+
+  const res = await http.get<Envelope<MusicSongDetail>>('/api/v1/music/chart/detail', { params })
+  return res.data.data!
 }

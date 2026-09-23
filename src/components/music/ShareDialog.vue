@@ -10,6 +10,11 @@ const SCORES = [1, 2, 3, 4, 5]
 
 const props = defineProps<{
   track: PlayableTrack
+  /**
+   * 传入即进入「修改」态：一人一歌只有一条评分记录，重复评分走 PUT 改这条。
+   * 只有 id/score/note 可回填——歌曲元数据是入库时的上游快照，不随编辑改变
+   */
+  existing?: { id: number; score: number; note: string | null }
 }>()
 
 const emit = defineEmits<{
@@ -19,12 +24,20 @@ const emit = defineEmits<{
 
 const shareStore = useShareStore()
 
-const score = ref(0)
-const note = ref('')
+const score = ref(props.existing?.score ?? 0)
+const note = ref(props.existing?.note ?? '')
 const submitting = ref(false)
 const errorMsg = ref('')
 
+const isEdit = computed(() => !!props.existing)
 const songLabel = computed(() => `${props.track.title} - ${props.track.artist}`)
+const dialogTitle = computed(() => (isEdit.value ? '修改我的评分' : '分享这首歌'))
+const submitText = computed(() => {
+  if (submitting.value) {
+    return isEdit.value ? '保存中...' : '分享中...'
+  }
+  return isEdit.value ? '保存修改' : '分享'
+})
 
 async function onSubmit() {
   if (submitting.value) {
@@ -40,12 +53,13 @@ async function onSubmit() {
   errorMsg.value = ''
 
   try {
-    await shareStore.submitShare({
-      songmid: props.track.songmid,
-      score: score.value,
-      note: note.value.trim(),
-    })
-    showToast('分享成功')
+    const text = note.value.trim()
+    await shareStore.submitRating(
+      props.existing
+        ? { id: props.existing.id, score: score.value, note: text }
+        : { songmid: props.track.songmid, score: score.value, note: text },
+    )
+    showToast(isEdit.value ? '已更新评分' : '分享成功')
     emit('success')
   } catch (e: unknown) {
     // 后端的中文 message 原样展示（http 拦截器已挂到 error.message）
@@ -62,7 +76,7 @@ async function onSubmit() {
       <div class="share-dialog" role="dialog" aria-label="分享歌曲">
         <header class="share-dialog__header">
           <span class="share-dialog__icon">🎵</span>
-          <span>分享这首歌</span>
+          <span>{{ dialogTitle }}</span>
         </header>
 
         <p class="share-dialog__song" :title="songLabel">{{ songLabel }}</p>
@@ -113,7 +127,7 @@ async function onSubmit() {
               取消
             </button>
             <button type="submit" class="share-dialog__submit" :disabled="submitting">
-              {{ submitting ? '分享中...' : '分享' }}
+              {{ submitText }}
             </button>
           </div>
         </form>

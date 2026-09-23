@@ -68,6 +68,14 @@ export interface CreateShareDTO {
   note: string
 }
 
+/** PUT /api/v1/music/share 的请求体：一人一歌一条，重复评分就是改这条 */
+export interface UpdateShareDTO {
+  id: number
+  /** 1-5 */
+  score: number
+  note: string
+}
+
 /** GET /api/v1/music/shares 的 data 单项（时间序动态流） */
 export interface MusicShareItem {
   id: number
@@ -79,12 +87,21 @@ export interface MusicShareItem {
   coverUrl: string
   /** 1-5 */
   score: number
-  note: string
+  /** 后端未填留言时为 null */
+  note: string | null
   /** 分享者用户 id */
   sharedBy: number
   /** 分享者展示名 */
   sharedName: string
   createdAt: string
+}
+
+/** 榜单行右侧留言条的单项（后端已排除请求者本人） */
+export interface MusicChartNote {
+  id: number
+  sharedName: string
+  score: number
+  note: string
 }
 
 /** GET /api/v1/music/chart 的 data 单项（月度榜单） */
@@ -98,8 +115,22 @@ export interface MusicChartItem {
   /** 平均分（浮点，展示时保留 1 位） */
   avgScore: number
   shareCount: number
-  /** 该曲目最高分分享附言 */
-  topNote: string
-  /** topNote 的作者 */
-  topSharedName: string
+  /** 当月别人最近的几条留言，最多 3 条 */
+  notes: MusicChartNote[]
+}
+
+/** GET /api/v1/music/chart/detail 的 data */
+export interface MusicSongDetail {
+  song: PlayableTrack
+  stats: {
+    /** 与榜单同一个贝叶斯口径 */
+    avgScore: number
+    shareCount: number
+    /** 下标 0..4 依次为 1~5 星的人数 */
+    distribution: number[]
+  };
+  /** 当月该歌全部评论，分数降序 */
+  list: MusicShareItem[]
+  /** 我对这首歌的评分记录，不受查看月份过滤；没评过为 null */
+  mine: MusicShareItem | null
 }
