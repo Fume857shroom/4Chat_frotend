@@ -47,6 +47,10 @@ const avatarStyle = computed(() => {
       <RouterLink to="/fun" class="app-sidebar__link" active-class="is-active" title="乐">
         <span class="app-sidebar__icon">乐</span>
       </RouterLink>
+
+      <RouterLink to="/jm" class="app-sidebar__link" active-class="is-active" title="禁">
+        <span class="app-sidebar__icon">禁</span>
+      </RouterLink>
     </nav>
 
     <!-- 个人中心入口：头像随 profile.avatar 实时联动 -->
