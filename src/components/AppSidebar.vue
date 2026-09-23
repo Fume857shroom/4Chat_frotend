@@ -48,6 +48,10 @@ const avatarStyle = computed(() => {
         <span class="app-sidebar__icon">乐</span>
       </RouterLink>
 
+      <RouterLink to="/music" class="app-sidebar__link" active-class="is-active" title="歌">
+        <span class="app-sidebar__icon">歌</span>
+      </RouterLink>
+
       <RouterLink to="/jm" class="app-sidebar__link" active-class="is-active" title="禁">
         <span class="app-sidebar__icon">禁</span>
       </RouterLink>
