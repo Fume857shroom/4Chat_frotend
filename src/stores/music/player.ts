@@ -602,6 +602,35 @@ export const usePlayerStore = defineStore('music-player', () => {
     offQueue.value = true
   }
 
+  /**
+   * 「加入播放列表」这颗按钮的行为：不在队列里就添到末尾，已在就移出。
+   * 与收藏分开是有意的——搜索完想连着听两三首属于一次性意图，
+   * 不该在「我的收藏」里留下永久条目。
+   *
+   * 队列原本是空的（queueIndex = -1）时加完不出声：displayTrack 回落到 queue[0]，
+   * 小播放器因此出现，播放仍由 togglePlayback 在用户点击时接手。
+   * 关过小播放器（✕）的情况必须把它重新叫出来，否则用户点了看不到任何反应。
+   */
+  function toggleInQueue(item: PlayableTrack): 'added' | 'removed' {
+    const index = queue.value.findIndex((row) => row.songmid === item.songmid)
+
+    if (index >= 0) {
+      removeFromQueue(index)
+      return 'removed'
+    }
+
+    queue.value = [...queue.value, item]
+    shuffleOrder.value = makeShuffleOrder(queue.value.length)
+    miniDismissed.value = false
+
+    return 'added'
+  }
+
+  /** 这首歌在当前播放队列里的位置，不在返回 -1（按钮的点亮态依据） */
+  function queueIndexOf(songmid: string): number {
+    return queue.value.findIndex((row) => row.songmid === songmid)
+  }
+
   function pause(): void {
     ensureAudio().pause()
   }
@@ -858,6 +887,8 @@ export const usePlayerStore = defineStore('music-player', () => {
     setQueue,
     removeFromQueue,
     clearQueue,
+    toggleInQueue,
+    queueIndexOf,
     next,
     prev,
     cycleRepeat,

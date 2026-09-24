@@ -2,6 +2,7 @@
 import { onMounted, ref } from 'vue'
 import CoverArt from './CoverArt.vue'
 import FavoriteButton from './FavoriteButton.vue'
+import QueueButton from './QueueButton.vue'
 import { searchMusic } from '../../api/music'
 import type { MusicSearchItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
@@ -117,7 +118,8 @@ function formatDuration(seconds: number): string {
           }}</span>
         </button>
 
-        <!-- 星在行外面，不参与「点行试听」，也不用嵌套按钮 -->
+        <!-- ＋ 与 ★ 都在行按钮外面：既不参与「点行试听」，也避免嵌套 button 被解析器搬出卡片 -->
+        <QueueButton :track="item" />
         <FavoriteButton :songmid="item.songmid" :track-title="item.title" />
       </li>
     </ul>
