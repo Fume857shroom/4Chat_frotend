@@ -18,6 +18,7 @@ import { fetchPlayInfo, fetchShares } from '../../api/music'
 import type { MusicPlayCandidate, MusicPlayInfo, PlayableTrack } from '../../types/music'
 import { fileUrlOf } from '../../composables/file'
 import { showToast } from '../../composables/toast'
+import { useAuthStore } from '../auth'
 
 /** 循环模式：off 顺序播完停住 / all 列表循环 / one 单曲循环 */
 export type PlayMode = 'off' | 'all' | 'one'
@@ -269,6 +270,22 @@ export const usePlayerStore = defineStore('music-player', () => {
 
   // --- 取址（唯一入口）---
 
+  /**
+   * 本地音频是 <audio src> 直取，浏览器发不出 Authorization 头，
+   * 只能像 SSE / ZIP 直下那样把 token 挂在 query 上（authMiddleware 两种都认）。
+   * token 在取址时现读，不在 store 初始化时缓存——重新登录后旧 token 已被拉黑。
+   */
+  function localStreamUrl(url: string): string {
+    const token = useAuthStore().token
+
+    if (!token) {
+      return fileUrlOf(url)
+    }
+
+    const sep = url.includes('?') ? '&' : '?'
+    return fileUrlOf(`${url}${sep}token=${encodeURIComponent(token)}`)
+  }
+
   async function acquireUrl(songmid: string): Promise<string> {
     const info = await fetchPlayInfo(songmid)
     const candidate = info ? pickCandidate(info) : null
@@ -281,7 +298,8 @@ export const usePlayerStore = defineStore('music-player', () => {
 
     // 分支点：按候选自己声明的 source 判断，不看顶层 info.source ——
     // 顶层只是「首选源的来源」，同一首歌的多档里混着本地与上游是正常情况
-    return candidate.source === 'local' ? fileUrlOf(candidate.url) : candidate.url
+    // 本地档要过本站鉴权流接口，所以额外挂 token；上游档自带签名，什么都不加
+    return candidate.source === 'local' ? localStreamUrl(candidate.url) : candidate.url
   }
 
   /** 重新取址并挂到媒体元素上；target 为元数据就绪后要恢复的进度 */
