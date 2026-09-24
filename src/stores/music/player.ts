@@ -19,81 +19,32 @@ import type { MusicPlayCandidate, MusicPlayInfo, PlayableTrack } from '../../typ
 import { fileUrlOf } from '../../composables/file'
 import { showToast } from '../../composables/toast'
 import { useAuthStore } from '../auth'
+import {
+  FAIL_LIMIT,
+  MINI_KEY,
+  PREV_RESTART_AT,
+  QUEUE_KEY,
+  REPEAT_ICON,
+  REPEAT_LABEL,
+  REPEAT_ORDER,
+  clampIndex,
+  makeShuffleOrder,
+  pickMode,
+  pickSource,
+  readJson,
+  readPoint,
+  toTracks,
+  writeJson,
+  type PlayMode,
+  type Point,
+  type PersistedMini,
+  type PersistedQueue,
+  type QueueSourceKind,
+} from './player.util'
 
-/** 循环模式：off 顺序播完停住 / all 列表循环 / one 单曲循环 */
-export type PlayMode = 'off' | 'all' | 'one'
-/** 队列是从哪儿攒起来的，只用于展示来源文案 */
-export type QueueSourceKind = '' | 'shares' | 'chart' | 'favorites' | 'playlist'
-
-const QUEUE_KEY = 'music_player_queue'
-const MINI_KEY = 'music_player_mini'
-/** 连续几首都取不到地址就停下：不挡的话上游抽风时会把整个队列的请求刷完 */
-const FAIL_LIMIT = 3
-/** 已播超过这个秒数再点「上一首」＝重新起播当前这首，而不是退回上一首 */
-const PREV_RESTART_AT = 3
-/** 循环按钮的切换顺序，与文案 列表循环 → 单曲循环 → 顺序播放 一致 */
-const REPEAT_ORDER: PlayMode[] = ['all', 'one', 'off']
-
-/** 循环按钮的文案与角标，小播放器与右栏面板共用一份 */
-export const REPEAT_LABEL: Record<PlayMode, string> = {
-  all: '列表循环',
-  one: '单曲循环',
-  off: '顺序播放',
-}
-export const REPEAT_ICON: Record<PlayMode, string> = {
-  all: '🔁',
-  one: '🔂',
-  off: '▶',
-}
-
-interface Point {
-  x: number
-  y: number
-}
-
-interface PersistedQueue {
-  queue?: unknown
-  queueIndex?: unknown
-  source?: unknown
-  sourceName?: unknown
-  repeat?: unknown
-  shuffle?: unknown
-}
-
-interface PersistedMini {
-  x?: unknown
-  y?: unknown
-  expanded?: unknown
-  dismissed?: unknown
-  volume?: unknown
-}
-
-function clampIndex(index: number, length: number): number {
-  if (length <= 0) {
-    return -1
-  }
-
-  return Math.min(Math.max(index, 0), length - 1)
-}
-
-function isTrack(value: unknown): value is PlayableTrack {
-  const item = value as PlayableTrack | null
-  return !!item && typeof item.songmid === 'string' && typeof item.title === 'string'
-}
-
-/** Fisher-Yates 洗牌出来的下标序列：整队列各播一次，天然不会连续重复同一首 */
-function makeShuffleOrder(length: number): number[] {
-  const order = Array.from({ length }, (_, i) => i)
-
-  for (let i = order.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1))
-    const swap = order[i]!
-    order[i] = order[j]!
-    order[j] = swap
-  }
-
-  return order
-}
+// 类型与循环按钮文案重新导出：外部按 '.../stores/music/player' 一处引用即可
+export { REPEAT_LABEL, REPEAT_ICON } from './player.util'
+export type { PlayMode, QueueSourceKind } from './player.util'
 
 export const usePlayerStore = defineStore('music-player', () => {
   // --- State ---
@@ -907,63 +858,3 @@ export const usePlayerStore = defineStore('music-player', () => {
     setMiniExpanded,
   }
 })
-
-// 存储读写：恢复这一处容错（用户手改 localStorage 是边界，坏了就当没存过）
-function readJson<T>(key: string): T | null {
-  const raw = localStorage.getItem(key)
-
-  if (!raw) {
-    return null
-  }
-
-  try {
-    return JSON.parse(raw) as T
-  } catch {
-    localStorage.removeItem(key)
-    return null
-  }
-}
-
-function writeJson(key: string, value: unknown): void {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // 无痕模式下 setItem 会抛：存不上就算了，不该影响播放
-  }
-}
-
-function toTracks(value: unknown): PlayableTrack[] {
-  if (!Array.isArray(value)) {
-    return []
-  }
-
-  return value.filter(isTrack).map((item) => ({
-    songmid: item.songmid,
-    title: item.title,
-    artist: typeof item.artist === 'string' ? item.artist : '',
-    duration: Number(item.duration) || 0,
-    coverUrl: typeof item.coverUrl === 'string' ? item.coverUrl : '',
-  }))
-}
-
-function pickSource(value: unknown): QueueSourceKind {
-  return value === 'shares' || value === 'chart' || value === 'favorites' || value === 'playlist'
-    ? value
-    : ''
-}
-
-function pickMode(value: unknown): PlayMode {
-  return value === 'off' || value === 'one' ? value : 'all'
-}
-
-function readPoint(saved: PersistedMini | null): Point | null {
-  const x = Number(saved?.x)
-  const y = Number(saved?.y)
-
-  // 任一格缺失或不是数字都退回默认右下角（组件里会再按视口 clamp 一次）
-  if (saved?.x == null || saved?.y == null || !Number.isFinite(x) || !Number.isFinite(y)) {
-    return null
-  }
-
-  return { x, y }
-}
