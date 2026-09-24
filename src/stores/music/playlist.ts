@@ -160,16 +160,20 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
     try {
       await apiRemoveItem(id, songmid)
 
-      favItems.value = favItems.value.filter((row) => row.songmid !== songmid)
-
-      if (current.value?.id === id) {
+      // 只同步被真正操作的那一份，与 addItem 的分支保持对称：
+      // 原先这里是无条件过滤 favItems，于是从服务器歌单移歌会把左栏「我的收藏」
+      // 里同一首也抹掉（服务端并没动它），那颗 ★ 还会跟着错误地熄灭
+      if (mine) {
+        favItems.value = favItems.value.filter((row) => row.songmid !== songmid)
+        showToast('已从我的收藏移除')
+      } else if (current.value?.id === id) {
         current.value = {
           ...current.value,
           list: current.value.list.filter((row) => row.songmid !== songmid),
         }
+        showToast('已移出歌单')
       }
 
-      showToast(mine ? '已从我的收藏移除' : '已移出歌单')
       syncItemCount(id, -1)
       return true
     } catch (e: unknown) {
