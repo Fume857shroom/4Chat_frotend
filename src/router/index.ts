@@ -3,8 +3,10 @@ import { authRoutes } from './modules/auth'
 import { chatRoutes } from './modules/chat'
 import { userRoutes } from './modules/user'
 import { funRoutes } from './modules/fun'
+import { jmRoutes } from './modules/jm'
+import { musicRoutes } from './modules/music'
 
-const routes = [...authRoutes, ...chatRoutes, ...userRoutes, ...funRoutes]
+const routes = [...authRoutes, ...chatRoutes, ...userRoutes, ...funRoutes, ...jmRoutes, ...musicRoutes]
 
 const router = createRouter({
   history: createWebHistory(),

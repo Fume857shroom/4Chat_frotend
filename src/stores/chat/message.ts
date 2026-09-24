@@ -65,6 +65,17 @@ export const useMessageStore = defineStore('message', () => {
       }
     }
 
+    // EventSource 会自动重连，但断线期间后端广播的消息不会补发，
+    // 因此每次「重连成功」都要拉一次最新历史，否则页面会安静地漏消息
+    let hasOpenedOnce = false
+    es.onopen = () => {
+      if (!hasOpenedOnce) {
+        hasOpenedOnce = true
+        return
+      }
+      refreshLatestMessages()
+    }
+
     es.onerror = () => {
       // EventSource built-in auto-reconnect, no manual handling needed
       console.warn('[message] SSE 连接异常，正在自动重连...')

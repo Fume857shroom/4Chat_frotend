@@ -66,6 +66,10 @@ export interface MediaListResult {
   limit: number
 }
 
+// http 实例的 10s 超时是给普通接口的；上传按 ChatView 允许的 500MB 算，
+// 慢上行下几分钟才传完，超时会在前端掐断请求而后端仍在收流
+const UPLOAD_TIMEOUT_MS = 10 * 60 * 1000
+
 // 发送文件消息：multipart 表单，file 字段 + 可选 content 描述
 // 文件由后端 multer 处理，前端不手动设置 Content-Type（axios 自动带 boundary）
 export async function sendFileMessage(file: File, content?: string): Promise<MessageItem> {
@@ -74,7 +78,9 @@ export async function sendFileMessage(file: File, content?: string): Promise<Mes
   if (content) {
     formData.append('content', content)
   }
-  const response = await http.post<MessageResponse>('/api/v1/messages/file', formData)
+  const response = await http.post<MessageResponse>('/api/v1/messages/file', formData, {
+    timeout: UPLOAD_TIMEOUT_MS,
+  })
   return response.data.data
 }
 
