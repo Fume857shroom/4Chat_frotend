@@ -3,10 +3,13 @@ import { computed, ref } from 'vue'
 import SearchPanel from '../../components/music/SearchPanel.vue'
 import ShareDialog from '../../components/music/ShareDialog.vue'
 import CoverArt from '../../components/music/CoverArt.vue'
+import PlayerControls from '../../components/music/PlayerControls.vue'
+import QueuePanel from '../../components/music/QueuePanel.vue'
 import { usePlayerStore } from '../../stores/music/player'
 
 // 搜索结果由 SearchPanel 自己持有（页面局部状态，不进 store）；
-// 这里只关心 store 里"当前在放什么"
+// 这块右栏只读 player store，不复制任何曲目/进度状态 ——
+// 所以它和右下角的小播放器永远同步，任意一边操作另一边立刻跟着变。
 const player = usePlayerStore()
 
 const showShare = ref(false)
@@ -18,16 +21,11 @@ const statusText = computed(() => {
   if (player.isLoading) {
     return '取址中'
   }
+  if (!player.hasTrack) {
+    return '待播放'
+  }
   return player.isPlaying ? '播放中' : '已暂停'
 })
-
-// 秒 → m:ss
-function formatClock(seconds: number): string {
-  const total = Math.max(0, Math.floor(seconds || 0))
-  const mm = Math.floor(total / 60)
-  const ss = total % 60
-  return `${mm}:${String(ss).padStart(2, '0')}`
-}
 </script>
 
 <template>
@@ -42,21 +40,21 @@ function formatClock(seconds: number): string {
         <span v-if="player.quality" class="music-play__chip">{{ player.quality }}</span>
       </header>
 
-      <div v-if="player.hasTrack" class="music-play__now-body">
+      <div v-if="player.displayTrack" class="music-play__now-body">
         <CoverArt
-          :src="player.track?.coverUrl ?? ''"
-          :seed="player.track?.songmid ?? ''"
-          :text="player.track?.title ?? ''"
+          :src="player.displayTrack.coverUrl"
+          :seed="player.displayTrack.songmid"
+          :text="player.displayTrack.title"
           :size="168"
           :radius="18"
         />
 
         <div class="music-play__song">
-          <p class="music-play__name" :title="player.track?.title">
-            {{ player.track?.title }}
+          <p class="music-play__name" :title="player.displayTrack.title">
+            {{ player.displayTrack.title }}
           </p>
-          <p class="music-play__artist" :title="player.track?.artist">
-            {{ player.track?.artist }}
+          <p class="music-play__artist" :title="player.displayTrack.artist">
+            {{ player.displayTrack.artist }}
           </p>
         </div>
 
@@ -66,8 +64,8 @@ function formatClock(seconds: number): string {
             <dd :class="{ 'music-play__stat-value--error': !!player.error }">{{ statusText }}</dd>
           </div>
           <div class="music-play__stat">
-            <dt>进度</dt>
-            <dd>{{ formatClock(player.currentTime) }} / {{ formatClock(player.duration) }}</dd>
+            <dt>队列</dt>
+            <dd>{{ player.queueLength }} 首</dd>
           </div>
         </dl>
 
@@ -76,17 +74,32 @@ function formatClock(seconds: number): string {
           <button type="button" @click="player.resume()">重试</button>
         </p>
 
+        <PlayerControls class="music-play__controls" />
+
         <button
           type="button"
           class="music-play__share"
-          :disabled="player.isLoading"
+          :disabled="!player.track || player.isLoading"
           @click="showShare = true"
         >
           分享这首歌
         </button>
 
-        <p class="music-play__hint">播放与进度条在页面底部，切子页不断音</p>
+        <p class="music-play__hint">
+          这块面板与右下角的小播放器是同一份状态，两边操作互相同步；切子页不断音
+        </p>
+
+        <button
+          v-if="player.miniDismissed"
+          type="button"
+          class="music-play__recall"
+          @click="player.restoreMini()"
+        >
+          重新显示小播放器
+        </button>
       </div>
+
+      <QueuePanel v-if="player.queueLength" :max-height="260" class="music-play__queue" />
 
       <p v-else class="music-play__placeholder">
         还没有播放中的歌曲，从左侧搜索结果点一首开始试听
@@ -294,6 +307,30 @@ function formatClock(seconds: number): string {
 .music-play__hint {
   color: rgba(255, 255, 255, 0.35);
   font-size: 11px;
+}
+
+/* 控件与队列：宽度跟着右栏走，别把面板撑出横向滚动 */
+.music-play__controls,
+.music-play__queue {
+  width: 100%;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.music-play__recall {
+  padding: 7px 14px;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  border-radius: 999px;
+  background: rgba(0, 240, 255, 0.08);
+  color: var(--cyan);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.music-play__recall:hover {
+  background: rgba(0, 240, 255, 0.16);
 }
 
 .music-play__placeholder {

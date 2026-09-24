@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import CoverArt from './CoverArt.vue'
+import FavoriteButton from './FavoriteButton.vue'
 import type { MusicShareItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
@@ -120,6 +121,9 @@ function formatWhen(iso: string): string {
             <span class="share-card__hint">▶ 点击试听</span>
           </span>
         </button>
+
+        <!-- 星在卡片按钮外面：嵌套 button 会被 HTML 解析器搬出卡片，反而破坏结构 -->
+        <FavoriteButton :songmid="share.songmid" :track-title="share.title" />
       </li>
     </ul>
 
@@ -236,6 +240,18 @@ function formatWhen(iso: string): string {
 
 .share-feed__list > li {
   flex: 0 0 auto;
+}
+
+/* 卡片 + 收藏星并排；卡片自己 flex:1 撑开，星固定在右侧 */
+.share-feed__item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.share-feed__item .share-card {
+  flex: 1;
+  min-width: 0;
 }
 
 /* --- 动态卡片 --- */

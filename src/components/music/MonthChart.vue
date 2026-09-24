@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { onMounted } from 'vue'
 import CoverArt from './CoverArt.vue'
+import FavoriteButton from './FavoriteButton.vue'
 import SongDetail from './SongDetail.vue'
 import type { MusicChartItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
@@ -120,6 +121,13 @@ function starsOf(score: number): string {
             </span>
             <span class="chart-row__more">全部 {{ item.shareCount }} 条 ›</span>
           </button>
+
+          <!-- 星在三个点击区之外，不参与「试听 / 看详情」，也不嵌套按钮 -->
+          <FavoriteButton
+            class="chart-row__fav"
+            :songmid="item.songmid"
+            :track-title="item.title"
+          />
         </div>
       </li>
     </ol>
@@ -226,7 +234,7 @@ function starsOf(score: number): string {
 /* --- 榜单行：一行三格，各自可点 --- */
 .chart-row {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) minmax(0, 260px);
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 260px) auto;
   align-items: stretch;
   border: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: var(--radius-md);
@@ -235,6 +243,14 @@ function starsOf(score: number): string {
   transition:
     background 0.2s,
     border-color 0.2s;
+}
+
+/* 收藏星固定在首行最后一格，窄屏留言条换行时它不动 */
+.chart-row__fav {
+  grid-area: 1 / 4;
+  align-self: center;
+  justify-self: center;
+  margin-right: 6px;
 }
 
 .chart-row:hover {
@@ -422,17 +438,22 @@ function starsOf(score: number): string {
   font-size: 11px;
 }
 
-/* 窄屏放不下三格：留言条换到第二行，仍保持在歌曲右侧的信息之下 */
+/* 窄屏放不下三格：留言条换到第二行，收藏星仍守在首行右侧 */
 @media (max-width: 1400px) {
   .chart-row {
-    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr) auto;
   }
 
   .chart-row__notes {
     grid-column: 1 / -1;
+    grid-row: 2;
     border-left: 0;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     padding: 8px 10px;
+  }
+
+  .chart-row__fav {
+    grid-area: 1 / 3;
   }
 }
 </style>

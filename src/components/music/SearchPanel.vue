@@ -1,12 +1,20 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { onMounted, ref } from 'vue'
 import CoverArt from './CoverArt.vue'
+import FavoriteButton from './FavoriteButton.vue'
 import { searchMusic } from '../../api/music'
 import type { MusicSearchItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
+import { usePlaylistStore } from '../../stores/music/playlist'
 
 // 搜索结果只在「音乐播放」页内使用 → 页面局部状态，不进 store
 const player = usePlayerStore()
+const playlist = usePlaylistStore()
+
+// ★ 的点亮态要有那份收藏集合，进页面拉一次（store 内部去重，不重复请求）
+onMounted(() => {
+  void playlist.fetchFavorites()
+})
 
 const keyword = ref('')
 const results = ref<MusicSearchItem[]>([])
@@ -85,7 +93,7 @@ function formatDuration(seconds: number): string {
     </p>
 
     <ul v-else class="search-panel__list">
-      <li v-for="item in results" :key="item.songmid">
+      <li v-for="item in results" :key="item.songmid" class="search-panel__row">
         <button
           type="button"
           class="track-row"
@@ -108,6 +116,9 @@ function formatDuration(seconds: number): string {
             player.track?.songmid === item.songmid && player.isPlaying ? '❙❙' : '▶'
           }}</span>
         </button>
+
+        <!-- 星在行外面，不参与「点行试听」，也不用嵌套按钮 -->
+        <FavoriteButton :songmid="item.songmid" :track-title="item.title" />
       </li>
     </ul>
   </section>
@@ -246,10 +257,19 @@ function formatDuration(seconds: number): string {
   flex: 0 0 auto;
 }
 
+/* 一行 = 试听按钮 + 收藏星：星做兄弟节点，不嵌进按钮里 */
+.search-panel__row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .track-row {
   display: flex;
   align-items: center;
   gap: 12px;
+  flex: 1;
+  min-width: 0;
   width: 100%;
   padding: 10px;
   border: 1px solid rgba(255, 255, 255, 0.06);

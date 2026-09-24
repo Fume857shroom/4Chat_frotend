@@ -1,6 +1,6 @@
 // ==========================================
 // src/types/music.ts
-// 「歌」板块共享类型：搜索曲目 / 播放地址 / 分享 / 月榜
+// 「歌」板块共享类型：搜索曲目 / 播放地址 / 分享 / 月榜 / 歌单（含我的收藏）
 // 接口返回结构随本文件走，api/music 与 stores/music、components/music 共用
 // ==========================================
 
@@ -29,9 +29,9 @@ export interface MusicSearchItem extends PlayableTrack {
 }
 
 /**
- * 播放地址来源（POST /api/v1/music/play 的 source）：
+ * 播放地址来源（POST /api/v1/music/play 的 source / sources[].source）：
  * - 'upstream' 腾讯 CDN 直链，绝对地址、已签名，不需要 cookie / Authorization / Referer
- * - 'local'    预留给未来的服务器本地歌单，届时为本站相对路径
+ * - 'local'    本站已经同步下来的文件，给的是本站相对路径，要用 fileUrlOf 拼成绝对地址
  */
 export type MusicPlaySource = 'upstream' | 'local'
 
@@ -47,6 +47,8 @@ export interface MusicPlayCandidate {
   /** canPlayType 的探测串 */
   mime: string
   url: string
+  /** 这一档自己的来源：拼 URL 时以它为准，不用顶层 source（顶层只是首选源的来源） */
+  source: MusicPlaySource
 }
 
 /** POST /api/v1/music/play 的 data */
@@ -133,4 +135,52 @@ export interface MusicSongDetail {
   list: MusicShareItem[]
   /** 我对这首歌的评分记录，不受查看月份过滤；没评过为 null */
   mine: MusicShareItem | null
+}
+
+// --- 歌单（我的收藏 = scope 'user' 的那一条，服务器歌单 = scope 'site'）---
+
+/**
+ * 歌单归属：
+ * - 'user' 我的收藏，ownerId 是我；一人一条，由后端在首次收藏时生成，前端没有新建入口
+ * - 'site' 服务器歌单，ownerId 为 0，谁都能往里加歌，只有创建者可整个删掉
+ */
+export type MusicPlaylistScope = 'user' | 'site'
+
+/** GET /api/v1/music/playlists 的 data 单项 / POST /api/v1/music/playlists 的返回 */
+export interface MusicPlaylistSummary {
+  id: number
+  ownerId: number
+  name: string
+  scope: MusicPlaylistScope
+  itemCount: number
+  createdBy: number
+  createdByName: string
+  /** 我能不能删这个歌单（服务器歌单的创建者才为 true） */
+  canDelete: boolean
+}
+
+/** 歌单里的一首歌；比 PlayableTrack 多了加入信息，多了「本站是否已有文件」 */
+export interface MusicPlaylistItem {
+  id: number
+  songmid: string
+  title: string
+  artist: string
+  duration: number
+  coverUrl: string
+  addedBy: number
+  addedName: string
+  addedAt: string
+  /** 后端已把这首歌同步到本站，取址时优先走本地文件 */
+  hasLocal: boolean
+}
+
+/** GET /api/v1/music/playlists/:id 的 data（后端不带 canDelete，用列表里那条的） */
+export interface MusicPlaylistDetail {
+  id: number
+  ownerId: number
+  name: string
+  scope: MusicPlaylistScope
+  createdBy: number
+  createdByName: string
+  list: MusicPlaylistItem[]
 }

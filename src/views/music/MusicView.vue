@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import NowPlayingBar from '../../components/music/NowPlayingBar.vue'
 
 const route = useRoute()
 
@@ -9,6 +8,7 @@ const route = useRoute()
 const features = [
   { to: '/music/play', icon: '🎵', name: '音乐播放' },
   { to: '/music/rank', icon: '🏆', name: '分享排行' },
+  { to: '/music/favorites', icon: '★', name: '我的收藏' },
 ]
 
 // 兜底：/music 索引路由已由 router 默认重定向到 play，仍保留空状态分支与「乐/禁」一致
@@ -43,8 +43,7 @@ const isHome = computed(() => route.name === 'music')
       </div>
     </section>
 
-    <!-- 播放条：两个子页共用同一 player store，切页不断音 -->
-    <NowPlayingBar />
+    <!-- 常驻小播放器挂在 HomeView，全站各栏目都在，这里不再放 -->
   </div>
 </template>
 
@@ -125,12 +124,11 @@ const isHome = computed(() => route.name === 'music')
   letter-spacing: 0.04em;
 }
 
-/* --- 右侧功能区（底部留出自定义播放条的高度，不被遮挡） --- */
+/* --- 右侧功能区（小播放器是浮动的，只有窄屏通栏时需要留高度） --- */
 .music-stage {
   flex: 1;
   min-width: 0;
   min-height: 0;
-  padding-bottom: 76px;
   overflow: hidden;
 }
 
@@ -158,9 +156,10 @@ const isHome = computed(() => route.name === 'music')
   letter-spacing: 0.08em;
 }
 
-@media (max-width: 900px) {
+/* 窄屏小播放器退回底部通栏，那一点高度要留给内容，别让最后一行被压住 */
+@media (max-width: 720px) {
   .music-stage {
-    padding-bottom: 118px;
+    padding-bottom: 72px;
   }
 }
 </style>

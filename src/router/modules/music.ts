@@ -11,6 +11,7 @@ import HomeView from '../../views/HomeView.vue'
 import MusicView from '../../views/music/MusicView.vue'
 import MusicPlayView from '../../views/music/MusicPlayView.vue'
 import MusicRankView from '../../views/music/MusicRankView.vue'
+import MusicFavoritesView from '../../views/music/MusicFavoritesView.vue'
 
 export const musicRoutes: RouteRecordRaw[] = [
   {
@@ -48,6 +49,15 @@ export const musicRoutes: RouteRecordRaw[] = [
             path: 'rank',
             name: 'music-rank',
             component: MusicRankView,
+            meta: {
+              requiresAuth: true,
+              feature: 'music',
+            },
+          },
+          {
+            path: 'favorites',
+            name: 'music-favorites',
+            component: MusicFavoritesView,
             meta: {
               requiresAuth: true,
               feature: 'music',
