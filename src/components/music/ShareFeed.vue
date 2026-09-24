@@ -5,7 +5,7 @@ import type { MusicShareItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
 
-// 分享动态不带封面字段 → 一律走 songmid 哈希占位图（见 CoverArt）
+// 封面走后端由 album_mid 拼出的直链；拿不到直链（早期无快照的行）时 CoverArt 自己回落占位图
 const player = usePlayerStore()
 const shareStore = useShareStore()
 
@@ -88,7 +88,16 @@ function formatWhen(iso: string): string {
           :title="`试听 ${share.title}`"
           @click="onPlay(share)"
         >
-          <CoverArt :seed="share.songmid" :text="share.title" :size="48" :radius="14" />
+          <span class="share-card__art">
+            <CoverArt
+              :src="share.coverUrl"
+              :seed="share.songmid"
+              :text="share.title"
+              :size="48"
+              :radius="14"
+            />
+            <span class="share-card__art-play" aria-hidden="true">▶</span>
+          </span>
 
           <span class="share-card__body">
             <span class="share-card__head">
@@ -255,6 +264,35 @@ function formatWhen(iso: string): string {
 .share-card--current {
   border-color: rgba(0, 240, 255, 0.5);
   background: linear-gradient(90deg, rgba(0, 240, 255, 0.1), rgba(255, 45, 85, 0.06));
+}
+
+/* 封面本身不是独立按钮（整张卡片已是一个 button，嵌套按钮会被 HTML 解析器搬出卡片），
+   所以只加一个 hover 才显形的试听角标，点封面即命中卡片的播放 */
+.share-card__art {
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.share-card__art-play {
+  position: absolute;
+  right: -3px;
+  bottom: -3px;
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.66);
+  color: var(--cyan);
+  font-size: 9px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.share-card:hover .share-card__art-play,
+.share-card--current .share-card__art-play {
+  opacity: 1;
 }
 
 .share-card__body {

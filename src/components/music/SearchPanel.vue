@@ -98,7 +98,7 @@ function formatDuration(seconds: number): string {
           <span class="track-row__info">
             <span class="track-row__title">
               <span class="track-row__name">{{ item.title }}</span>
-              <span v-if="item.needsLogin" class="track-row__flag">需登录</span>
+              <span v-if="item.needsLogin" class="track-row__flag">VIP</span>
             </span>
             <span class="track-row__sub">{{ item.artist }}<template v-if="item.album"> · {{ item.album }}</template></span>
           </span>
