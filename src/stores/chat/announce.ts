@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import type { Announce } from '../../api/chat/message'
 import { fetchAnnounces as apiFetchAnnounces, createAnnounce as apiCreateAnnounce } from '../../api/chat/message'
+import { errorText } from '../../composables/errorText'
 
 export const useAnnounceStore = defineStore('announce', () => {
   const list = ref<Announce[]>([])
@@ -21,8 +22,8 @@ export const useAnnounceStore = defineStore('announce', () => {
       list.value = res.data
       total.value = res.total
       currentPage.value = page
-    } catch {
-      error.value = '公告加载失败'
+    } catch (e: unknown) {
+      error.value = errorText(e, '公告加载失败')
     } finally {
       loading.value = false
     }

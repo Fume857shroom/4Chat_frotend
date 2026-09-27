@@ -3,7 +3,9 @@
 // 聊天页与媒体库共用
 // ==========================================
 
-export const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']
+// 能内联渲染的位图格式。刻意不含 svg：后端 /uploads 静态层把 svg 当脚本载体
+// 强制 attachment 下载（同源存储型 XSS 防线），前端再按 <img> 渲染就是裂图
+export const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'ico']
 
 // /uploads/... 相对路径 → 拼接 API 域名；空值返回 ''
 export function fileUrlOf(url?: string): string {

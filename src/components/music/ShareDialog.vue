@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import type { PlayableTrack } from '../../types/music'
 import { useShareStore } from '../../stores/music/share'
 import { showToast } from '../../composables/toast'
+import { errorText } from '../../composables/errorText'
 
 // 与后端 share.validator 的 note 上限保持一致
 const NOTE_MAX = 200
@@ -63,7 +64,7 @@ async function onSubmit() {
     emit('success')
   } catch (e: unknown) {
     // 后端的中文 message 原样展示（http 拦截器已挂到 error.message）
-    errorMsg.value = e instanceof Error ? e.message : '分享失败，请稍后重试'
+    errorMsg.value = errorText(e, '分享失败，请稍后重试')
   } finally {
     submitting.value = false
   }

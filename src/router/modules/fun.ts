@@ -1,8 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
+// 静态导入（刻意不拆包）：
+// - HomeView 是 app-shell，每次导航都要立刻用；
+// - FunPagePlaceholder 只是一个几百字节的占位组件，且 fun / jm 两个模块共用，
+//   单独拆一个 chunk 反而多一次请求。
 import HomeView from '../../views/HomeView.vue'
-import FunView from '../../views/fun/FunView.vue'
-import CalendarView from '../../views/fun/CalendarView.vue'
-import GomokuView from '../../views/fun/GomokuView.vue'
 import FunPagePlaceholder from '../../components/fun/FunPagePlaceholder.vue'
 
 export const funRoutes: RouteRecordRaw[] = [
@@ -17,7 +18,8 @@ export const funRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'fun',
-        component: FunView,
+        // 「乐」整块按需加载：不进聊天首屏
+        component: () => import('../../views/fun/FunView.vue'),
         meta: {
           requiresAuth: true,
           feature: 'fun',
@@ -26,7 +28,9 @@ export const funRoutes: RouteRecordRaw[] = [
           {
             path: 'calendar',
             name: 'fun-calendar',
-            component: CalendarView,
+            // 单独一个 chunk 收益最大：CalendarView 经 CalendarMonth / HuangliPanel
+            // 拉进 lunar-javascript（体积远大于自研代码），只有点进黄历才需要
+            component: () => import('../../views/fun/CalendarView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'fun',
@@ -35,7 +39,7 @@ export const funRoutes: RouteRecordRaw[] = [
           {
             path: 'gomoku',
             name: 'fun-gomoku',
-            component: GomokuView,
+            component: () => import('../../views/fun/GomokuView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'fun',

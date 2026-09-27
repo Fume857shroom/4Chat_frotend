@@ -7,11 +7,10 @@
 // 侧边栏入口：在 AppSidebar 的 nav 中加 <RouterLink to="/music" title="歌">
 // ==========================================
 import type { RouteRecordRaw } from 'vue-router'
+// 静态导入（刻意不拆包）：HomeView 是 app-shell，每次导航都要立刻用。
+// 「歌」的四个页面按需加载：播放器与歌单 store 已被 MiniPlayer 拉进首屏 chunk，
+// 这里拆的是视图本身（分享动态/榜单/收藏/搜索面板），不进首屏。
 import HomeView from '../../views/HomeView.vue'
-import MusicView from '../../views/music/MusicView.vue'
-import MusicPlayView from '../../views/music/MusicPlayView.vue'
-import MusicRankView from '../../views/music/MusicRankView.vue'
-import MusicFavoritesView from '../../views/music/MusicFavoritesView.vue'
 
 export const musicRoutes: RouteRecordRaw[] = [
   {
@@ -25,7 +24,7 @@ export const musicRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'music',
-        component: MusicView,
+        component: () => import('../../views/music/MusicView.vue'),
         meta: {
           requiresAuth: true,
           feature: 'music',
@@ -39,7 +38,7 @@ export const musicRoutes: RouteRecordRaw[] = [
           {
             path: 'play',
             name: 'music-play',
-            component: MusicPlayView,
+            component: () => import('../../views/music/MusicPlayView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'music',
@@ -48,7 +47,7 @@ export const musicRoutes: RouteRecordRaw[] = [
           {
             path: 'rank',
             name: 'music-rank',
-            component: MusicRankView,
+            component: () => import('../../views/music/MusicRankView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'music',
@@ -57,7 +56,7 @@ export const musicRoutes: RouteRecordRaw[] = [
           {
             path: 'favorites',
             name: 'music-favorites',
-            component: MusicFavoritesView,
+            component: () => import('../../views/music/MusicFavoritesView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'music',

@@ -7,6 +7,7 @@ import { searchMusic } from '../../api/music'
 import type { MusicSearchItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { usePlaylistStore } from '../../stores/music/playlist'
+import { errorText } from '../../composables/errorText'
 
 // 搜索结果只在「音乐播放」页内使用 → 页面局部状态，不进 store
 const player = usePlayerStore()
@@ -42,7 +43,7 @@ async function onSearch() {
   } catch (e: unknown) {
     results.value = []
     // 后端中文提示原样透出（http 拦截器已把 message 挂在 error.message 上）
-    error.value = e instanceof Error ? e.message : '搜索失败，请稍后重试'
+    error.value = errorText(e, '搜索失败，请稍后重试')
   } finally {
     loading.value = false
   }

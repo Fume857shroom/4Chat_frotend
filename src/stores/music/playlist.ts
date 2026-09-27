@@ -24,6 +24,7 @@ import {
 } from '../../api/music/playlist'
 import { usePlayerStore } from './player'
 import { showToast } from '../../composables/toast'
+import { errorText } from '../../composables/errorText'
 
 /** 歌单条目 → 播放器曲目：字段是 PlayableTrack 的子集，队列里不需要加入人/时间 */
 function toTracks(items: MusicPlaylistItem[]): PlayableTrack[] {
@@ -34,11 +35,6 @@ function toTracks(items: MusicPlaylistItem[]): PlayableTrack[] {
     duration: item.duration,
     coverUrl: item.coverUrl,
   }))
-}
-
-/** 后端中文 message 优先（http 拦截器已挂到 error.message），拿不到才用兜底句 */
-function messageOf(e: unknown, fallback: string): string {
-  return e instanceof Error && e.message ? e.message : fallback
 }
 
 export const usePlaylistStore = defineStore('music-playlist', () => {
@@ -84,7 +80,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
       loaded.value = true
     } catch (e: unknown) {
       lists.value = []
-      error.value = messageOf(e, '歌单列表加载失败')
+      error.value = errorText(e, '歌单列表加载失败')
     } finally {
       loading.value = false
     }
@@ -114,7 +110,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
       favItems.value = detail.list
       favLoaded.value = true
     } catch (e: unknown) {
-      favError.value = messageOf(e, '我的收藏加载失败')
+      favError.value = errorText(e, '我的收藏加载失败')
     } finally {
       favLoading.value = false
     }
@@ -149,7 +145,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
       syncItemCount(id, 1)
       return true
     } catch (e: unknown) {
-      showToast(messageOf(e, mine ? '收藏失败' : '加入歌单失败'))
+      showToast(errorText(e, mine ? '收藏失败' : '加入歌单失败'))
       return false
     }
   }
@@ -177,7 +173,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
       syncItemCount(id, -1)
       return true
     } catch (e: unknown) {
-      showToast(messageOf(e, mine ? '取消收藏失败' : '移出歌单失败'))
+      showToast(errorText(e, mine ? '取消收藏失败' : '移出歌单失败'))
       return false
     }
   }
@@ -216,7 +212,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
       lists.value = [...lists.value, created]
       return created
     } catch (e: unknown) {
-      showToast(messageOf(e, '新建歌单失败'))
+      showToast(errorText(e, '新建歌单失败'))
       return null
     }
   }
@@ -232,7 +228,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
 
       return true
     } catch (e: unknown) {
-      showToast(messageOf(e, '删除歌单失败'))
+      showToast(errorText(e, '删除歌单失败'))
       return false
     }
   }
@@ -247,7 +243,7 @@ export const usePlaylistStore = defineStore('music-playlist', () => {
     } catch (e: unknown) {
       current.value = null
       // 后端这条的中文 message（歌单不存在 / 无权查看等）原样透出
-      currentError.value = messageOf(e, '歌单加载失败')
+      currentError.value = errorText(e, '歌单加载失败')
     } finally {
       currentLoading.value = false
     }

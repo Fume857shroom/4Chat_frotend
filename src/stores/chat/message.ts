@@ -4,6 +4,7 @@ import { sendMessage as apiSendMessage, sendFileMessage as apiSendFileMessage, f
 import type { MessageDisplay, MessageItem } from '../../api/chat/message'
 import { useAuthStore } from '../auth'
 import { notify } from '../../composables/notification'
+import { errorText } from '../../composables/errorText'
 
 const INITIAL_LIMIT = 100
 const INCREMENTAL_LIMIT = 50
@@ -103,8 +104,8 @@ export const useMessageStore = defineStore('message', () => {
       }))
       hasMore.value = data.hasMore
       nextCursor = data.nextCursor
-    } catch {
-      historyLoadError.value = '初始消息加载失败'
+    } catch (e: unknown) {
+      historyLoadError.value = errorText(e, '初始消息加载失败')
       console.error('[message] 初始消息加载失败')
     } finally {
       isLoadingHistory.value = false
@@ -130,8 +131,8 @@ export const useMessageStore = defineStore('message', () => {
       messages.value = [...historyItems, ...messages.value]
       hasMore.value = data.hasMore
       nextCursor = data.nextCursor
-    } catch {
-      historyLoadError.value = '历史消息加载失败'
+    } catch (e: unknown) {
+      historyLoadError.value = errorText(e, '历史消息加载失败')
       console.error('[message] 历史消息加载失败')
     } finally {
       isLoadingHistory.value = false

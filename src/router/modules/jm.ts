@@ -3,9 +3,8 @@
 // 禁漫功能区路由（挂在 app-shell 下，与 fun 结构一致）
 // ==========================================
 import type { RouteRecordRaw } from 'vue-router'
+// 静态导入（刻意不拆包）：HomeView 是 app-shell；FunPagePlaceholder 是共用的小占位组件
 import HomeView from '../../views/HomeView.vue'
-import JmView from '../../views/jm/JmView.vue'
-import JmDownloadView from '../../views/jm/JmDownloadView.vue'
 import FunPagePlaceholder from '../../components/fun/FunPagePlaceholder.vue'
 
 export const jmRoutes: RouteRecordRaw[] = [
@@ -20,7 +19,8 @@ export const jmRoutes: RouteRecordRaw[] = [
       {
         path: '',
         name: 'jm',
-        component: JmView,
+        // 「禁」整块按需加载：与聊天首屏无关
+        component: () => import('../../views/jm/JmView.vue'),
         meta: {
           requiresAuth: true,
           feature: 'jm',
@@ -29,7 +29,7 @@ export const jmRoutes: RouteRecordRaw[] = [
           {
             path: 'download',
             name: 'jm-download',
-            component: JmDownloadView,
+            component: () => import('../../views/jm/JmDownloadView.vue'),
             meta: {
               requiresAuth: true,
               feature: 'jm',

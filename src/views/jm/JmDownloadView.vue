@@ -9,6 +9,8 @@ import {
   type JmHistoryItem,
 } from '../../api/jm/download'
 import { showToast } from '../../composables/toast'
+// 批量提交 / 历史查询失败时展示后端中文提示（如 429「操作太频繁」）
+import { errorText } from '../../composables/errorText'
 
 // 批量队列：idsText 支持空格/逗号/顿号/换行分隔；提交后各 taskId 并行轮询
 // 提交成功即清空输入，用户无需等待即可继续输入下一批（后端 MAX_CONCURRENT=3 自动排队）
@@ -104,7 +106,7 @@ async function startBatch() {
       }
     }
   } catch (err) {
-    errorMsg.value = err instanceof Error ? err.message : '批量提交失败'
+    errorMsg.value = errorText(err, '批量提交失败')
   } finally {
     submitting.value = false
   }
@@ -127,7 +129,7 @@ async function loadHistory() {
     const res = await getHistory(1, 30)
     history.value = res.list
   } catch (err) {
-    errorMsg.value = err instanceof Error ? err.message : '获取历史失败'
+    errorMsg.value = errorText(err, '获取历史失败')
   }
 }
 

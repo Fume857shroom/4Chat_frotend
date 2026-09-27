@@ -19,6 +19,7 @@ import {
   fetchSongDetail as apiFetchSongDetail,
   updateShare as apiUpdateShare,
 } from '../../api/music'
+import { errorText } from '../../composables/errorText'
 
 const FEED_LIMIT = 20
 
@@ -66,8 +67,8 @@ export const useShareStore = defineStore('music-share', () => {
       list.value = res.list
       total.value = res.total
       page.value = res.page
-    } catch {
-      error.value = '分享动态加载失败'
+    } catch (e: unknown) {
+      error.value = errorText(e, '分享动态加载失败')
     } finally {
       loading.value = false
     }
@@ -86,8 +87,8 @@ export const useShareStore = defineStore('music-share', () => {
       list.value = [...list.value, ...res.list]
       total.value = res.total
       page.value = res.page
-    } catch {
-      error.value = '分享动态加载失败'
+    } catch (e: unknown) {
+      error.value = errorText(e, '分享动态加载失败')
     } finally {
       loadingMore.value = false
     }
@@ -99,8 +100,8 @@ export const useShareStore = defineStore('music-share', () => {
 
     try {
       chart.value = await apiFetchChart(chartMonth.value)
-    } catch {
-      chartError.value = '月度排行加载失败'
+    } catch (e: unknown) {
+      chartError.value = errorText(e, '月度排行加载失败')
     } finally {
       chartLoading.value = false
     }
@@ -140,7 +141,7 @@ export const useShareStore = defineStore('music-share', () => {
     } catch (e: unknown) {
       detail.value = null
       // 后端这条的中文 message 就是「这首歌还没有人分享」，原样透出比写死一句更准
-      detailError.value = e instanceof Error ? e.message : '这首歌的评分加载失败'
+      detailError.value = errorText(e, '这首歌的评分加载失败')
     } finally {
       detailLoading.value = false
     }

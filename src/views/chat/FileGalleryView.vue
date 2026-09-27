@@ -32,7 +32,6 @@ const page = ref(0)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const IMAGE_EXTS = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico']
 const DOC_EXTS = ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'md']
 const ARCHIVE_EXTS = ['zip', 'rar', '7z', 'tar', 'gz']
 const VIDEO_EXTS = ['mp4', 'avi', 'mkv', 'mov', 'wmv', 'flv', 'webm']
@@ -40,7 +39,7 @@ const AUDIO_EXTS = ['mp3', 'wav', 'flac', 'aac', 'ogg', 'm4a']
 
 function groupKeyOf(ext: string): string {
   const e = (ext || '').toLowerCase()
-  if (IMAGE_EXTS.includes(e)) return 'image'
+  if (isImageExt(e)) return 'image'
   if (DOC_EXTS.includes(e)) return 'doc'
   if (ARCHIVE_EXTS.includes(e)) return 'archive'
   if (VIDEO_EXTS.includes(e)) return 'video'

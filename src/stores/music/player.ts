@@ -18,6 +18,7 @@ import { fetchPlayInfo, fetchShares } from '../../api/music'
 import type { MusicPlayCandidate, MusicPlayInfo, PlayableTrack } from '../../types/music'
 import { fileUrlOf } from '../../composables/file'
 import { showToast } from '../../composables/toast'
+import { errorText } from '../../composables/errorText'
 import { useAuthStore } from '../auth'
 import {
   FAIL_LIMIT,
@@ -278,7 +279,7 @@ export const usePlayerStore = defineStore('music-player', () => {
       el.src = url
       return true
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : '获取播放地址失败'
+      error.value = errorText(e, '获取播放地址失败')
       return false
     } finally {
       isLoading.value = false
@@ -295,6 +296,8 @@ export const usePlayerStore = defineStore('music-player', () => {
       if ((e as DOMException)?.name === 'AbortError') {
         return
       }
+      // 这里是 <audio> 自己抛的 DOMException（无源/被策略拦住），message 是英文技术串，
+      // 不经 http.ts、也没有后端中文提示可透出，所以固定文案比 errorText 更合适
       error.value = '无法播放，请稍后重试'
       isPlaying.value = false
     }
@@ -668,7 +671,7 @@ export const usePlayerStore = defineStore('music-player', () => {
 
       await playQueue(tracks, 0, 'shares')
     } catch (e: unknown) {
-      error.value = e instanceof Error ? e.message : '最新分享拉取失败'
+      error.value = errorText(e, '最新分享拉取失败')
     }
   }
 
