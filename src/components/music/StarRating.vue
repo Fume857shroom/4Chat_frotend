@@ -45,6 +45,8 @@ const fontSize = computed(() => `${props.size ?? 14}px`)
   left: 0;
   top: 0;
   overflow: hidden;
+  /* 不给 nowrap，窄容器里五颗星会折行，裁剪比例就错了 */
+  white-space: nowrap;
   color: var(--yellow);
 }
 </style>

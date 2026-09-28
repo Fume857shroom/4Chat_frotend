@@ -127,9 +127,11 @@ async function onSubmit() {
                 :disabled="submitting"
                 @click="pickOnStar(value, $event)"
               >
-                <!-- 底星是灰的，亮星用同宽裁剪层从左边盖上去，半星就是 width:50% -->
+                <!-- 底星压暗；亮星是同一颗星的裁剪层，从左边盖上来，半星就是 width:50% -->
                 <span class="share-dialog__star-base">★</span>
-                <span class="share-dialog__star-fill" :style="{ width: `${fillPercent(value)}%` }">★</span>
+                <span class="share-dialog__star-clip" :style="{ width: `${fillPercent(value)}%` }">
+                  <span class="share-dialog__star-fill">★</span>
+                </span>
               </button>
 
               <button
@@ -255,8 +257,10 @@ async function onSubmit() {
 
 .share-dialog__star {
   position: relative;
-  width: 36px;
-  height: 36px;
+  /* 裁剪层里那颗星必须和底星严丝合缝，这个尺寸两处共用一个变量 */
+  --star-box: 36px;
+  width: var(--star-box);
+  height: var(--star-box);
   padding: 0;
   border: 0;
   border-radius: 10px;
@@ -275,10 +279,18 @@ async function onSubmit() {
   transform: translateY(-1px);
 }
 
+.share-dialog__star:focus-visible {
+  outline: 2px solid rgba(0, 240, 255, 0.55);
+  outline-offset: 1px;
+}
+
 .share-dialog__star-base,
 .share-dialog__star-fill {
   position: absolute;
-  inset: 0;
+  left: 0;
+  top: 0;
+  width: var(--star-box);
+  height: var(--star-box);
   display: grid;
   place-items: center;
 }
@@ -287,13 +299,18 @@ async function onSubmit() {
   color: rgba(255, 255, 255, 0.18);
 }
 
-/* 裁剪层：只占 50% 宽就只亮左半边，字符本身不能跟着缩 */
 .share-dialog__star-fill {
-  width: 0;
-  overflow: hidden;
   color: var(--yellow);
-  justify-content: flex-start;
-  white-space: pre;
+}
+
+/* 裁剪层只管"亮到哪一格"：它自己按 width 裁，内层那颗星仍按整颗星的位置摆，
+   所以 50% 就是一条笔直的半星分界线，而不是把星形挤扁 */
+.share-dialog__star-clip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  overflow: hidden;
   pointer-events: none;
 }
 
