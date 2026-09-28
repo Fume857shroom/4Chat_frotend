@@ -121,7 +121,7 @@ async function onSubmit() {
                 class="share-dialog__star"
                 :class="{ 'share-dialog__star--on': score >= value - 0.5 }"
                 role="radio"
-                :aria-checked="score === value"
+                :aria-checked="score === value || score === value - 0.5"
                 :aria-label="`${value - 0.5} 或 ${value} 星`"
                 :title="`${value - 0.5} 或 ${value} 星（点左半取一半）`"
                 :disabled="submitting"
