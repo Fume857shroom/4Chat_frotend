@@ -24,7 +24,9 @@ export async function updateStatus(dto: UpdateStatusDTO): Promise<void> {
   await http.put('/api/v1/user/status', dto)
 }
 
-// 4. 上传头像（前端不限制文件类型与大小，直接上传）
+// 4. 上传头像：传的是 AvatarCropper 的 canvas.toBlob 产物（Blob，不是 File），
+// multipart 里的 filename 会是 "blob" —— 没有扩展名是正常形态，别在这里补后缀。
+// 类型与大小由后端按文件真实字节判定（png/jpg/gif/webp，5MB 上限），失败原因走中文 message
 export async function uploadAvatar(file: Blob): Promise<{ avatarUrl: string }> {
   const formData = new FormData()
   formData.append('file', file)

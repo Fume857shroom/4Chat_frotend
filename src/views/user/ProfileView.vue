@@ -5,6 +5,7 @@ import { useAuthStore } from '../../stores/auth'
 import ProfileEditDrawer from '../../components/user/ProfileEditDrawer.vue'
 import AvatarCropper from '../../components/user/AvatarCropper.vue'
 import { showToast } from '../../composables/toast'
+import { errorText } from '../../composables/errorText'
 
 const userStore = useUserStore()
 const authStore = useAuthStore()
@@ -79,8 +80,9 @@ async function handleCropConfirm(blob: Blob) {
   try {
     await userStore.uploadAvatar(blob)
     showToast('头像上传成功')
-  } catch {
-    showToast('头像上传失败')
+  } catch (e: unknown) {
+    // 后端给的中文原因原样透出（格式不符 / 超过 5MB / 传太频繁），只说"失败"用户无从下手
+    showToast(errorText(e, '头像上传失败'))
   }
 }
 </script>
