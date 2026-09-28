@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import CoverArt from './CoverArt.vue'
 import FavoriteButton from './FavoriteButton.vue'
+import StarRating from './StarRating.vue'
 import type { MusicShareItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
@@ -22,11 +23,6 @@ function onPlay(share: MusicShareItem) {
     duration: share.duration,
     coverUrl: share.coverUrl,
   })
-}
-
-function starsOf(score: number): string {
-  const value = Math.min(5, Math.max(0, Math.round(score)))
-  return `${'★'.repeat(value)}${'☆'.repeat(5 - value)}`
 }
 
 // 可读日期 + 时间：今天 / 昨天 带 HH:mm，更早的补月份、跨年补年份
@@ -112,9 +108,14 @@ function formatWhen(iso: string): string {
               <span class="share-card__artist">- {{ share.artist }}</span>
             </span>
 
-            <span class="share-card__stars" :aria-label="`${share.score} 分`">
-              {{ starsOf(share.score) }}
-            </span>
+            <StarRating
+              v-if="share.score > 0"
+              class="share-card__stars"
+              :score="share.score"
+              :size="13"
+              :aria-label="`${share.score} 分`"
+            />
+            <span v-else class="share-card__stars share-card__stars--skip">不评分</span>
 
             <span v-if="share.note" class="share-card__note">{{ share.note }}</span>
 
@@ -377,6 +378,12 @@ function formatWhen(iso: string): string {
   color: var(--yellow);
   font-size: 12px;
   letter-spacing: 0.08em;
+}
+
+/* 0 分（不评分）：写文字而不是画空星，否则看起来像渲染坏了 */
+.share-card__stars--skip {
+  color: var(--muted);
+  letter-spacing: 0;
 }
 
 .share-card__note {

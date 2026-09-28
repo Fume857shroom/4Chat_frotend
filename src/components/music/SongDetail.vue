@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import CoverArt from './CoverArt.vue'
 import ShareDialog from './ShareDialog.vue'
+import StarRating from './StarRating.vue'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
 import { useUserStore } from '../../stores/user'
@@ -42,11 +43,6 @@ function dayLabel(iso: string): string {
   const d = new Date(iso)
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-
-function starsOf(score: number): string {
-  const value = Math.min(5, Math.max(0, Math.round(score)))
-  return `${'★'.repeat(value)}${'☆'.repeat(5 - value)}`
 }
 
 function barWidth(count: number): string {
@@ -97,7 +93,7 @@ function onPlay() {
                 <p class="song-detail__name">{{ detail.song.title }}</p>
                 <p class="song-detail__artist">{{ detail.song.artist }}</p>
                 <p class="song-detail__score">
-                  <span class="song-detail__stars">{{ starsOf(detail.stats.avgScore) }}</span>
+                  <StarRating class="song-detail__stars" :score="detail.stats.avgScore" :size="15" />
                   <span class="song-detail__avg">{{ detail.stats.avgScore.toFixed(1) }}</span>
                   <span class="song-detail__count">{{ detail.stats.shareCount }} 人推荐</span>
                 </p>
@@ -124,8 +120,13 @@ function onPlay() {
               <template v-if="detail.mine">
                 <p class="song-detail__mine-title">我的评分</p>
                 <p class="song-detail__mine-stars">
-                  <span class="song-detail__stars">{{ starsOf(detail.mine.score) }}</span>
-                  <span>{{ detail.mine.score }} / 5</span>
+                  <StarRating
+                    v-if="detail.mine.score > 0"
+                    class="song-detail__stars"
+                    :score="detail.mine.score"
+                    :size="15"
+                  />
+                  <span>{{ detail.mine.score > 0 ? `${detail.mine.score} / 5` : '不评分（不进榜单平均分）' }}</span>
                   <time class="song-detail__mine-when">{{ dayLabel(detail.mine.createdAt) }}</time>
                 </p>
                 <p class="song-detail__mine-note">{{ detail.mine.note || '（我没有留言）' }}</p>
@@ -151,7 +152,8 @@ function onPlay() {
                 <span class="song-comment__head">
                   <strong class="song-comment__who">{{ item.sharedName }}</strong>
                   <span v-if="isMine(item.sharedBy)" class="song-comment__me">我</span>
-                  <span class="song-comment__stars">{{ starsOf(item.score) }}</span>
+                  <StarRating v-if="item.score > 0" class="song-comment__stars" :score="item.score" :size="13" />
+                  <span v-else class="song-comment__skip">不评分</span>
                   <time class="song-comment__when">{{ dayLabel(item.createdAt) }}</time>
                 </span>
                 <span class="song-comment__note">{{ item.note || '（未留言，只打了分）' }}</span>
@@ -559,6 +561,13 @@ function onPlay() {
   margin-left: auto;
   color: var(--yellow);
   letter-spacing: 0.06em;
+}
+
+/* 0 分（不评分）：不给星，只写一句，免得看起来像"漏了数据" */
+.song-comment__skip {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .song-comment__when {

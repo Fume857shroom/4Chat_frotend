@@ -7,6 +7,7 @@ import { errorText } from '../../composables/errorText'
 
 // 与后端 share.validator 的 note 上限保持一致
 const NOTE_MAX = 200
+/** 星星只画 5 颗，但每颗分左右两半 → 实际档位 0.5/1/1.5/…/5；0 另有入口（不评分） */
 const SCORES = [1, 2, 3, 4, 5]
 
 const props = defineProps<{
@@ -26,6 +27,11 @@ const emit = defineEmits<{
 const shareStore = useShareStore()
 
 const score = ref(props.existing?.score ?? 0)
+/**
+ * 是否已经明确选过分值。0 是「不评分」这个合法选择，不能再用 score 的真假来判断，
+ * 所以单独一个标记：新建分享时必须点一下（打分或点「不评分」），不许什么都不碰就提交。
+ */
+const chosen = ref(props.existing !== undefined)
 const note = ref(props.existing?.note ?? '')
 const submitting = ref(false)
 const errorMsg = ref('')
@@ -33,6 +39,7 @@ const errorMsg = ref('')
 const isEdit = computed(() => !!props.existing)
 const songLabel = computed(() => `${props.track.title} - ${props.track.artist}`)
 const dialogTitle = computed(() => (isEdit.value ? '修改我的评分' : '分享这首歌'))
+const scoreHint = computed(() => (score.value === 0 ? '不评分（不进榜单平均分）' : `${score.value} / 5`))
 const submitText = computed(() => {
   if (submitting.value) {
     return isEdit.value ? '保存中...' : '分享中...'
@@ -40,13 +47,34 @@ const submitText = computed(() => {
   return isEdit.value ? '保存修改' : '分享'
 })
 
+/** 某颗星该亮多少：整星 100%、半星 50%、不亮 0% */
+function fillPercent(star: number): number {
+  if (score.value >= star) {
+    return 100
+  }
+  return score.value >= star - 0.5 ? 50 : 0
+}
+
+/** 点星星的左半下 0.5、右半下整星（0.5 档只能从这里出，0 走「不评分」按钮） */
+function pickOnStar(star: number, event: MouseEvent) {
+  const box = (event.currentTarget as HTMLElement).getBoundingClientRect()
+  const leftHalf = event.clientX - box.left < box.width / 2
+  pick(leftHalf ? star - 0.5 : star)
+}
+
+function pick(value: number) {
+  score.value = value
+  chosen.value = true
+  errorMsg.value = ''
+}
+
 async function onSubmit() {
   if (submitting.value) {
     return
   }
 
-  if (score.value < 1) {
-    errorMsg.value = '请先打分（1-5 星）'
+  if (!chosen.value) {
+    errorMsg.value = '先点一下星星打分，或者选「不评分」'
     return
   }
 
@@ -91,16 +119,31 @@ async function onSubmit() {
                 :key="value"
                 type="button"
                 class="share-dialog__star"
-                :class="{ 'share-dialog__star--on': value <= score }"
+                :class="{ 'share-dialog__star--on': score >= value - 0.5 }"
                 role="radio"
-                :aria-checked="value === score"
-                :aria-label="`${value} 星`"
+                :aria-checked="score === value"
+                :aria-label="`${value - 0.5} 或 ${value} 星`"
+                :title="`${value - 0.5} 或 ${value} 星（点左半取一半）`"
                 :disabled="submitting"
-                @click="score = value"
+                @click="pickOnStar(value, $event)"
               >
-                ★
+                <!-- 底星是灰的，亮星用同宽裁剪层从左边盖上去，半星就是 width:50% -->
+                <span class="share-dialog__star-base">★</span>
+                <span class="share-dialog__star-fill" :style="{ width: `${fillPercent(value)}%` }">★</span>
               </button>
-              <span class="share-dialog__score-text">{{ score ? `${score} / 5` : '未评分' }}</span>
+
+              <button
+                type="button"
+                class="share-dialog__skip"
+                :class="{ 'share-dialog__skip--on': score === 0 }"
+                :disabled="submitting"
+                title="分享这首歌但不打分：算一次分享，不进榜单平均分"
+                @click="pick(0)"
+              >
+                不评分
+              </button>
+
+              <span class="share-dialog__score-text">{{ scoreHint }}</span>
             </div>
           </div>
 
@@ -211,6 +254,7 @@ async function onSubmit() {
 }
 
 .share-dialog__star {
+  position: relative;
   width: 36px;
   height: 36px;
   padding: 0;
@@ -220,6 +264,8 @@ async function onSubmit() {
   color: rgba(255, 255, 255, 0.18);
   font-size: 22px;
   line-height: 1;
+  /* 左半/右半是两个不同的分值，光标要能提示这不是"点一下整颗" */
+  cursor: col-resize;
   transition:
     color 0.15s,
     transform 0.15s;
@@ -229,11 +275,54 @@ async function onSubmit() {
   transform: translateY(-1px);
 }
 
-.share-dialog__star--on {
-  color: var(--yellow);
+.share-dialog__star-base,
+.share-dialog__star-fill {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
 }
 
-.share-dialog__star:disabled {
+.share-dialog__star-base {
+  color: rgba(255, 255, 255, 0.18);
+}
+
+/* 裁剪层：只占 50% 宽就只亮左半边，字符本身不能跟着缩 */
+.share-dialog__star-fill {
+  width: 0;
+  overflow: hidden;
+  color: var(--yellow);
+  justify-content: flex-start;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.share-dialog__star--on .share-dialog__star-base {
+  color: rgba(255, 228, 92, 0.18);
+}
+
+.share-dialog__skip {
+  margin-left: 6px;
+  padding: 4px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+  transition:
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.share-dialog__skip--on {
+  border-color: rgba(255, 228, 92, 0.45);
+  color: var(--yellow);
+  background: rgba(255, 228, 92, 0.08);
+}
+
+.share-dialog__star:disabled,
+.share-dialog__skip:disabled {
   cursor: wait;
 }
 

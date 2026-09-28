@@ -3,6 +3,7 @@ import { onMounted } from 'vue'
 import CoverArt from './CoverArt.vue'
 import FavoriteButton from './FavoriteButton.vue'
 import SongDetail from './SongDetail.vue'
+import StarRating from './StarRating.vue'
 import type { MusicChartItem } from '../../types/music'
 import { usePlayerStore } from '../../stores/music/player'
 import { useShareStore } from '../../stores/music/share'
@@ -31,11 +32,6 @@ function onDetail(item: MusicChartItem) {
 
 function scoreText(avgScore: number): string {
   return Number.isFinite(avgScore) ? avgScore.toFixed(1) : '--'
-}
-
-function starsOf(score: number): string {
-  const value = Math.min(5, Math.max(0, Math.round(score)))
-  return `${'★'.repeat(value)}${'☆'.repeat(5 - value)}`
 }
 </script>
 
@@ -99,7 +95,7 @@ function starsOf(score: number): string {
               <span class="chart-row__artist">- {{ item.artist }}</span>
             </span>
             <span class="chart-row__stats">
-              <span class="chart-row__score">{{ starsOf(item.avgScore) }}</span>
+              <StarRating class="chart-row__score" :score="item.avgScore" :size="14" />
               <span class="chart-row__avg">{{ scoreText(item.avgScore) }} 分</span>
               <span class="chart-row__count">{{ item.shareCount }} 人推荐</span>
             </span>
@@ -113,7 +109,7 @@ function starsOf(score: number): string {
           >
             <span v-for="note in item.notes" :key="note.id" class="chart-row__note">
               <strong class="chart-row__note-who">{{ note.sharedName }}</strong>
-              <span class="chart-row__note-star">{{ note.score }}分</span>
+              <span class="chart-row__note-star">{{ note.score > 0 ? `${note.score} 分` : '不评分' }}</span>
               <span class="chart-row__note-text">{{ note.note }}</span>
             </span>
             <span v-if="item.notes.length === 0" class="chart-row__note chart-row__note--empty">
