@@ -46,6 +46,17 @@ export const funRoutes: RouteRecordRaw[] = [
             },
           },
           {
+            path: 'tarot',
+            name: 'fun-tarot',
+            // 塔罗整块单独一个 chunk：牌面图与 15 套布局坐标只有点进来才需要，
+            // 不能拖累「乐」的其它子页面
+            component: () => import('../../views/fun/TarotView.vue'),
+            meta: {
+              requiresAuth: true,
+              feature: 'fun',
+            },
+          },
+          {
             path: 'chess',
             name: 'fun-chess',
             component: FunPagePlaceholder,

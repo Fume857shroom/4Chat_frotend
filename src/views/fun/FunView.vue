@@ -8,6 +8,7 @@ const route = useRoute()
 const features = [
   { to: '/fun/calendar', icon: '📅', name: '老黄历' },
   { to: '/fun/gomoku', icon: '⚫', name: '五子棋' },
+  { to: '/fun/tarot', icon: '🔮', name: '塔罗' },
   { to: '/fun/chess', icon: '♞', name: '象棋' },
 ]
 
