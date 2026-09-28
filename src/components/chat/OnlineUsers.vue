@@ -104,6 +104,7 @@ function avatarStyleOf(user: { id: number; username: string; avatar?: string }):
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
   padding: 10px 12px;
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.04);
@@ -156,7 +157,10 @@ function avatarStyleOf(user: { id: number; username: string; avatar?: string }):
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  flex-shrink: 0;
+  /* 可收缩 + min-width:0：长心情文字在胶囊内省略，而不是把整行顶宽。
+     之前是 flex-shrink:0，一行最小内容宽度 ~242px，超过左栏轨道宽度就会溢到聊天列下面 */
+  flex-shrink: 1;
+  min-width: 0;
   max-width: 160px;
   padding: 3px 10px;
   border: 1px solid rgba(255, 228, 92, 0.35);

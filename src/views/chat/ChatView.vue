@@ -462,13 +462,18 @@ onUnmounted(() => {
 <style scoped>
 .chat-page {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(0, 7fr);
+  /* 左栏要给面板真实宽度：面板内容的最小宽度约 270px（在线用户的心情胶囊不参与收缩），
+     而 1fr 分法永远只让它拿到 min 的 220px，多出来的部分会被后画的聊天列盖住，
+     表现就是计数球、昵称、公告正文在同一条竖线上被切掉 */
+  grid-template-columns: minmax(280px, 320px) minmax(0, 1fr);
   gap: 24px;
   height: 100%;
   overflow: hidden;
 }
 
 .chat-page__meta {
+  /* 允许被压回轨道宽度以内，否则面板内容会把列撑宽并溢到聊天区上面 */
+  min-width: 0;
   display: grid;
   gap: 16px;
 }
